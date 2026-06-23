@@ -24,5 +24,12 @@ export const UserRepository = {
 
   async deleteById(id: string) {
     return await UserModel.findByIdAndDelete(id);
+  },
+
+  async update(id: string, updateData: Partial<IUser>) {
+    return await UserModel.findByIdAndUpdate(id, updateData, {
+      returnDocument: 'after',
+      runValidators: true,
+    });
   }
 };

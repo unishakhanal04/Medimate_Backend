@@ -40,8 +40,7 @@ async function testAPI() {
       username: 'testuser',
       email: 'testuser@example.com',
       password: 'password123',
-      gender: 'male',
-      dateOfBirth: '1990-01-15'
+      gender: 'male'
     };
     
     const registerResponse = await makeRequest('POST', '/api/auth/register', registerData);

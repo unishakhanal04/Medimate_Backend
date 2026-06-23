@@ -1,6 +1,8 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import path from "path";
 import userRoutes from "./routes/user.routes";
+import prescriptionRoutes from "./routes/prescription.routes";
 import { sendError } from "./utils/apihelper.util";
 import { HttpException } from "./exceptions/http-exception";
 
@@ -8,18 +10,23 @@ const app = express();
 
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
+    origin: "*",
     credentials: true,
   })
 );
 app.use(express.json());
+
+// Serve uploads directory as static files
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 app.get("/health", (_req, res) => {
   res.json({ success: true, message: "MediMate API is running" });
 });
 
 // API routes
+app.use("/api/v1/auth", userRoutes);
 app.use("/api/auth", userRoutes);
+app.use("/api/prescriptions", prescriptionRoutes);
 
 // Global error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

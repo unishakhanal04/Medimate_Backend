@@ -8,8 +8,8 @@ const userSchema = new Schema<IUserDocument>(
     username: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     gender: { type: String, enum: ["male", "female", "other"], required: true },
-    dateOfBirth: { type: String, required: true },
     password: { type: String, required: true },
+    profileImage: { type: String, default: null },
   },
   { timestamps: true }
 );

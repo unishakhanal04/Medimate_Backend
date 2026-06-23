@@ -11,7 +11,7 @@ const toPublicUser = (user: IUserDocument) => ({
   username: user.username,
   email: user.email,
   gender: user.gender,
-  dateOfBirth: user.dateOfBirth,
+  profileImage: user.profileImage,
 });
 
 const createAuthResponse = (user: IUserDocument) => {
@@ -40,11 +40,10 @@ export const registerUser = async (dto: RegisterDTO) => {
     username: dto.username,
     email: dto.email,
     gender: dto.gender,
-    dateOfBirth: dto.dateOfBirth,
     password: hashed,
   });
 
-  return createAuthResponse(user);
+  return toPublicUser(user);
 };
 
 export const loginUser = async (dto: LoginDTO) => {
@@ -59,4 +58,65 @@ export const loginUser = async (dto: LoginDTO) => {
   }
 
   return createAuthResponse(user);
+};
+
+export const getUserById = async (userId: string) => {
+  const user = await UserRepository.findById(userId);
+  if (!user) {
+    throw new HttpException(404, "User not found");
+  }
+  return toPublicUser(user);
+};
+
+export const updateUserProfile = async (userId: string, updateData: { username?: string; email?: string; gender?: "male" | "female" | "other"; profileImage?: string }) => {
+  const user = await UserRepository.findById(userId);
+  if (!user) {
+    throw new HttpException(404, "User not found");
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    throw new HttpException(400, "No profile fields provided");
+  }
+
+  if (updateData.email) {
+    updateData.email = updateData.email.trim().toLowerCase();
+  }
+
+  if (updateData.username) {
+    updateData.username = updateData.username.trim();
+  }
+
+  if (updateData.email && updateData.email !== user.email) {
+    const exists = await UserRepository.existsByEmail(updateData.email);
+    if (exists) {
+      throw new HttpException(409, "Email already in use");
+    }
+  }
+
+  const updatedUser = await UserRepository.update(userId, updateData);
+  if (!updatedUser) {
+    throw new HttpException(404, "User not found");
+  }
+  return toPublicUser(updatedUser);
+};
+
+export const updateUserPassword = async (userId: string, currentPassword: string, newPassword: string) => {
+  const user = await UserRepository.findById(userId);
+  if (!user) {
+    throw new HttpException(404, "User not found");
+  }
+
+  if (newPassword.trim().length < 6) {
+    throw new HttpException(400, "New password must be at least 6 characters");
+  }
+
+  const isMatch = await bcrypt.compare(currentPassword, user.password);
+  if (!isMatch) {
+    throw new HttpException(401, "Current password is incorrect");
+  }
+
+  const hashed = await bcrypt.hash(newPassword, CONSTANTS.BCRYPT_ROUNDS);
+  await UserRepository.update(userId, { password: hashed });
+
+  return { message: "Password updated successfully" };
 };

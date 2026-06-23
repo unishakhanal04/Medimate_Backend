@@ -2,8 +2,8 @@ export interface IUser {
   username: string;
   email: string;
   gender: "male" | "female" | "other";
-  dateOfBirth: string;
   password: string;
+  profileImage?: string;
   createdAt?: Date;
 }
 
@@ -11,7 +11,6 @@ export interface RegisterDTO {
   username: string;
   email: string;
   gender: "male" | "female" | "other";
-  dateOfBirth: string;
   password: string;
 }
 
