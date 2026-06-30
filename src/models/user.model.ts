@@ -10,6 +10,8 @@ const userSchema = new Schema<IUserDocument>(
     gender: { type: String, enum: ["male", "female", "other"], required: true },
     password: { type: String, required: true },
     profileImage: { type: String, default: null },
+    role: { type: String, enum: ["user", "admin"], default: "user", required: true },
+    status: { type: String, enum: ["active", "inactive"], default: "active", required: true },
   },
   { timestamps: true }
 );
