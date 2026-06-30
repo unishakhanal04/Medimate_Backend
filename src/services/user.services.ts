@@ -1,21 +1,29 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { UserRepository } from "../repositories/user.repository";
-import { RegisterDTO, LoginDTO, JwtPayload } from "../types/user.type";
+import { RegisterDTO, LoginDTO, JwtPayload, PublicUser } from "../types/user.type";
 import { CONSTANTS } from "../config/constant";
 import { HttpException } from "../exceptions/http-exception";
 import { IUserDocument } from "../models/user.model";
 
-const toPublicUser = (user: IUserDocument) => ({
-  id: user._id,
+export const toPublicUser = (user: IUserDocument): PublicUser => ({
+  id: user._id.toString(),
   username: user.username,
   email: user.email,
   gender: user.gender,
   profileImage: user.profileImage,
+  role: user.role,
+  status: user.status,
+  createdAt: user.createdAt,
+  updatedAt: user.updatedAt,
 });
 
 const createAuthResponse = (user: IUserDocument) => {
-  const payload: JwtPayload = { userId: user._id.toString(), email: user.email };
+  const payload: JwtPayload = {
+    userId: user._id.toString(),
+    email: user.email,
+    role: user.role,
+  };
   const token = jwt.sign(payload, CONSTANTS.JWT_SECRET, {
     expiresIn: CONSTANTS.JWT_EXPIRES_IN,
   } as jwt.SignOptions);
@@ -41,6 +49,8 @@ export const registerUser = async (dto: RegisterDTO) => {
     email: dto.email,
     gender: dto.gender,
     password: hashed,
+    role: "user",
+    status: "active",
   });
 
   return toPublicUser(user);
@@ -68,7 +78,15 @@ export const getUserById = async (userId: string) => {
   return toPublicUser(user);
 };
 
-export const updateUserProfile = async (userId: string, updateData: { username?: string; email?: string; gender?: "male" | "female" | "other"; profileImage?: string }) => {
+export const updateUserProfile = async (
+  userId: string,
+  updateData: {
+    username?: string;
+    email?: string;
+    gender?: "male" | "female" | "other";
+    profileImage?: string | null;
+  }
+) => {
   const user = await UserRepository.findById(userId);
   if (!user) {
     throw new HttpException(404, "User not found");
