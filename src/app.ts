@@ -3,6 +3,7 @@ import cors from "cors";
 import path from "path";
 import userRoutes from "./routes/user.routes";
 import prescriptionRoutes from "./routes/prescription.routes";
+import adminUserRoutes from "./routes/admin.user.routes";
 import { sendError } from "./utils/apihelper.util";
 import { HttpException } from "./exceptions/http-exception";
 
@@ -27,6 +28,7 @@ app.get("/health", (_req, res) => {
 app.use("/api/v1/auth", userRoutes);
 app.use("/api/auth", userRoutes);
 app.use("/api/prescriptions", prescriptionRoutes);
+app.use("/api/v1/admin/users", adminUserRoutes);
 
 // Global error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
