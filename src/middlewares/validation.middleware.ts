@@ -22,11 +22,10 @@ export const validateRegister = (
   next: NextFunction
 ) => {
   const errors: Record<string, string> = {};
-  const { username, email, gender, dateOfBirth, password } = req.body as {
+  const { username, email, gender, password } = req.body as {
     username: unknown;
     email: unknown;
     gender: unknown;
-    dateOfBirth: unknown;
     password: unknown;
   };
 
@@ -42,10 +41,6 @@ export const validateRegister = (
     errors.gender = "Please select a valid gender";
   }
 
-  if (!isNonEmptyString(dateOfBirth)) {
-    errors.dateOfBirth = "Date of birth is required";
-  }
-
   if (!isNonEmptyString(password) || password.trim().length < 6) {
     errors.password = "Password is required and must be at least 6 characters";
   }
@@ -58,7 +53,6 @@ export const validateRegister = (
     ...req.body,
     username: (username as string).trim(),
     email: (email as string).trim().toLowerCase(),
-    dateOfBirth: (dateOfBirth as string).trim(),
     password: password as string,
     gender,
   };
