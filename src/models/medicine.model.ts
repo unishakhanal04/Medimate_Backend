@@ -51,6 +51,13 @@ const MedicineSchema = new Schema<IMedicine>(
       required: true,
       default: "active",
     },
+    quantity: {
+      type: Number,
+    },
+    refillThreshold: {
+      type: Number,
+      default: 5,
+    },
   },
   {
     timestamps: true,
