@@ -6,6 +6,9 @@ import {
   UpdateMedicineDTO,
   TodayMedicine,
   AdherenceStats,
+  AdherenceSeriesPoint,
+  RefillAlert,
+  MedicineProgress,
 } from "../types/medicine.type";
 
 export const MedicineService = {
@@ -20,6 +23,8 @@ export const MedicineService = {
       endDate: data.endDate ? new Date(data.endDate) : undefined,
       notes: data.notes,
       status: "active",
+      quantity: data.quantity,
+      refillThreshold: data.refillThreshold,
     };
 
     const medicine = await MedicineRepository.create(medicineData);
@@ -57,6 +62,8 @@ export const MedicineService = {
     if (data.endDate !== undefined) updateData.endDate = data.endDate ? new Date(data.endDate) : undefined;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.status !== undefined) updateData.status = data.status;
+    if (data.quantity !== undefined) updateData.quantity = data.quantity;
+    if (data.refillThreshold !== undefined) updateData.refillThreshold = data.refillThreshold;
 
     const updatedMedicine = await MedicineRepository.update(id, updateData);
     if (!updatedMedicine) {
@@ -204,5 +211,146 @@ export const MedicineService = {
       totalScheduled,
       streak,
     };
+  },
+
+  async getAdherenceSeries(
+    userId: string,
+    period: "daily" | "weekly",
+    buckets: number
+  ): Promise<AdherenceSeriesPoint[]> {
+    const activeMedicines = await MedicineRepository.findActiveByUserId(userId);
+
+    // Medicine start/end dates are stored from date-only strings (parsed as UTC
+    // midnight), so their calendar day must be read via UTC getters. "Today" and
+    // the report's day buckets are real local calendar days (the server's own
+    // notion of "today"), read via local getters. Comparing calendar-day keys
+    // (not absolute instants) avoids drift from the server's UTC offset.
+    const localDayKey = (d: Date) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+    const storedDayKey = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+
+    const scheduledForDay = (dayKey: number) => {
+      let count = 0;
+      for (const medicine of activeMedicines) {
+        const startKey = storedDayKey(new Date(medicine.startDate));
+        const endKey = medicine.endDate ? storedDayKey(new Date(medicine.endDate)) : null;
+        if (dayKey < startKey || (endKey !== null && dayKey > endKey)) continue;
+        if (medicine.frequency === "daily" || medicine.frequency === "weekly") {
+          count += medicine.times.length;
+        }
+      }
+      return count;
+    };
+
+    const points: AdherenceSeriesPoint[] = [];
+
+    if (period === "daily") {
+      for (let i = buckets - 1; i >= 0; i--) {
+        const dayStart = new Date();
+        dayStart.setHours(0, 0, 0, 0);
+        dayStart.setDate(dayStart.getDate() - i);
+        const dayEnd = new Date(dayStart);
+        dayEnd.setHours(23, 59, 59, 999);
+
+        const logs = await MedicineRepository.findLogsByUserId(userId, dayStart, dayEnd);
+        const taken = logs.filter((log) => log.status === "taken").length;
+        const scheduled = scheduledForDay(localDayKey(dayStart));
+        const missed = Math.max(scheduled - taken, 0);
+        const percentage = scheduled > 0 ? Math.round((taken / scheduled) * 100) : 0;
+
+        points.push({
+          label: dayStart.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+          scheduled,
+          taken,
+          missed,
+          percentage,
+        });
+      }
+    } else {
+      for (let i = buckets - 1; i >= 0; i--) {
+        const weekEnd = new Date();
+        weekEnd.setHours(23, 59, 59, 999);
+        weekEnd.setDate(weekEnd.getDate() - i * 7);
+        const weekStart = new Date(weekEnd);
+        weekStart.setDate(weekStart.getDate() - 6);
+        weekStart.setHours(0, 0, 0, 0);
+
+        const logs = await MedicineRepository.findLogsByUserId(userId, weekStart, weekEnd);
+        const taken = logs.filter((log) => log.status === "taken").length;
+
+        let scheduled = 0;
+        for (let d = 0; d < 7; d++) {
+          const day = new Date(weekStart);
+          day.setDate(day.getDate() + d);
+          scheduled += scheduledForDay(localDayKey(day));
+        }
+        const missed = Math.max(scheduled - taken, 0);
+        const percentage = scheduled > 0 ? Math.round((taken / scheduled) * 100) : 0;
+
+        points.push({
+          label: `Week of ${weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`,
+          scheduled,
+          taken,
+          missed,
+          percentage,
+        });
+      }
+    }
+
+    return points;
+  },
+
+  async getRefillAlerts(userId: string): Promise<RefillAlert[]> {
+    const activeMedicines = await MedicineRepository.findActiveByUserId(userId);
+
+    return activeMedicines
+      .filter(
+        (medicine) =>
+          medicine.quantity !== undefined &&
+          medicine.quantity !== null &&
+          medicine.quantity <= (medicine.refillThreshold ?? 5)
+      )
+      .map((medicine) => ({
+        _id: medicine._id.toString(),
+        name: medicine.name,
+        dosage: medicine.dosage,
+        quantity: medicine.quantity as number,
+        refillThreshold: medicine.refillThreshold ?? 5,
+      }));
+  },
+
+  async getMedicineWiseProgress(userId: string, days: number): Promise<MedicineProgress[]> {
+    const activeMedicines = await MedicineRepository.findActiveByUserId(userId);
+    const today = new Date();
+    const rangeStart = new Date(today);
+    rangeStart.setDate(rangeStart.getDate() - days);
+
+    const logs = await MedicineRepository.findLogsByUserId(userId, rangeStart, today);
+
+    return activeMedicines.map((medicine) => {
+      const dosesTaken = logs.filter(
+        (log) => log.medicineId === medicine._id.toString() && log.status === "taken"
+      ).length;
+
+      let dosesScheduled = 0;
+      if (medicine.frequency === "daily" || medicine.frequency === "weekly") {
+        const medicineStart = new Date(medicine.startDate);
+        const effectiveStart = medicineStart > rangeStart ? medicineStart : rangeStart;
+        const activeDays = Math.max(
+          Math.ceil((today.getTime() - effectiveStart.getTime()) / (1000 * 60 * 60 * 24)),
+          0
+        );
+        dosesScheduled = activeDays * medicine.times.length;
+      }
+
+      const adherencePercentage = dosesScheduled > 0 ? Math.round((dosesTaken / dosesScheduled) * 100) : 0;
+
+      return {
+        medicineId: medicine._id.toString(),
+        name: medicine.name,
+        adherencePercentage,
+        dosesTaken,
+        dosesScheduled,
+      };
+    });
   },
 };

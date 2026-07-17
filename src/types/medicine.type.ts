@@ -9,6 +9,8 @@ export interface IMedicine {
   endDate?: Date;
   notes?: string;
   status: "active" | "inactive" | "completed";
+  quantity?: number;
+  refillThreshold?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +33,8 @@ export interface CreateMedicineDTO {
   startDate: string;
   endDate?: string;
   notes?: string;
+  quantity?: number;
+  refillThreshold?: number;
 }
 
 export interface UpdateMedicineDTO {
@@ -42,6 +46,8 @@ export interface UpdateMedicineDTO {
   endDate?: string;
   notes?: string;
   status?: "active" | "inactive" | "completed";
+  quantity?: number;
+  refillThreshold?: number;
 }
 
 export interface TodayMedicine {
@@ -58,4 +64,28 @@ export interface AdherenceStats {
   medicinesTaken: number;
   totalScheduled: number;
   streak: number;
+}
+
+export interface AdherenceSeriesPoint {
+  label: string;
+  scheduled: number;
+  taken: number;
+  missed: number;
+  percentage: number;
+}
+
+export interface RefillAlert {
+  _id: string;
+  name: string;
+  dosage: string;
+  quantity: number;
+  refillThreshold: number;
+}
+
+export interface MedicineProgress {
+  medicineId: string;
+  name: string;
+  adherencePercentage: number;
+  dosesTaken: number;
+  dosesScheduled: number;
 }
