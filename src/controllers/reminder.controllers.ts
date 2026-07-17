@@ -1,0 +1,10 @@
+import { NextFunction, Response } from "express";
+import { HttpException } from "../exceptions/http-exception";
+import { AuthRequest } from "../middlewares/authorized.middleware";
+import { ReminderModel } from "../models/reminder.model";
+import { sendSuccess } from "../utils/apihelper.util";
+const userId = (req: AuthRequest) => { if (!req.user?.userId) throw new HttpException(401, "User not authenticated"); return req.user.userId; };
+export const listReminders = async (req: AuthRequest, res: Response, next: NextFunction) => { try { sendSuccess(res, await ReminderModel.find({ userId: userId(req) }).sort({ time: 1 })); } catch (e) { next(e); } };
+export const createReminder = async (req: AuthRequest, res: Response, next: NextFunction) => { try { if (!req.body.title || !req.body.time) throw new HttpException(400, "Title and time are required"); sendSuccess(res, await ReminderModel.create({ ...req.body, userId: userId(req) }), "Reminder added", 201); } catch (e) { next(e); } };
+export const updateReminder = async (req: AuthRequest, res: Response, next: NextFunction) => { try { const item = await ReminderModel.findOneAndUpdate({ _id: req.params.id, userId: userId(req) }, req.body, { new: true }); if (!item) throw new HttpException(404, "Reminder not found"); sendSuccess(res, item, "Reminder updated"); } catch (e) { next(e); } };
+export const deleteReminder = async (req: AuthRequest, res: Response, next: NextFunction) => { try { const item = await ReminderModel.findOneAndDelete({ _id: req.params.id, userId: userId(req) }); if (!item) throw new HttpException(404, "Reminder not found"); sendSuccess(res, { id: req.params.id }, "Reminder deleted"); } catch (e) { next(e); } };

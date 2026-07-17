@@ -1,7 +1,17 @@
 import mongoose, { Document, Schema } from "mongoose";
-import { IUser } from "../types/user.type";
+import { IUser, IUserPreferences } from "../types/user.type";
 
 export interface IUserDocument extends IUser, Document {}
+
+const preferencesSchema = new Schema<IUserPreferences>(
+  {
+    darkMode: { type: Boolean, default: false },
+    emailNotifications: { type: Boolean, default: true },
+    medicineReminders: { type: Boolean, default: true },
+    appointmentReminders: { type: Boolean, default: true },
+  },
+  { _id: false }
+);
 
 const userSchema = new Schema<IUserDocument>(
   {
@@ -12,6 +22,22 @@ const userSchema = new Schema<IUserDocument>(
     profileImage: { type: String, default: null },
     role: { type: String, enum: ["user", "admin"], default: "user", required: true },
     status: { type: String, enum: ["active", "inactive"], default: "active", required: true },
+    phone: { type: String, trim: true },
+    dateOfBirth: { type: Date },
+    bloodGroup: { type: String, trim: true },
+    allergies: { type: [String], default: [] },
+    chronicDiseases: { type: [String], default: [] },
+    height: { type: Number },
+    weight: { type: Number },
+    preferences: {
+      type: preferencesSchema,
+      default: () => ({
+        darkMode: false,
+        emailNotifications: true,
+        medicineReminders: true,
+        appointmentReminders: true,
+      }),
+    },
   },
   { timestamps: true }
 );

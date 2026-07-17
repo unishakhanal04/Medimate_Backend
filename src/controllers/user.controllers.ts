@@ -1,5 +1,13 @@
 import { Request, Response, NextFunction } from "express";
-import { registerUser, loginUser, getUserById, updateUserProfile, updateUserPassword } from "../services/user.services";
+import {
+  registerUser,
+  loginUser,
+  getUserById,
+  updateUserProfile,
+  updateUserPassword,
+  requestPasswordReset,
+  resetPassword as resetPasswordService,
+} from "../services/user.services";
 import { sendSuccess } from "../utils/apihelper.util";
 import { AuthRequest } from "../middlewares/authorized.middleware";
 import { HttpException } from "../exceptions/http-exception";
@@ -106,6 +114,37 @@ export const changePassword = async (req: AuthRequest, res: Response, next: Next
       String(newPassword)
     );
     sendSuccess(res, result, "Password updated successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body as { email?: unknown };
+    if (typeof email !== "string" || !email.trim()) {
+      throw new HttpException(400, "A valid email address is required");
+    }
+
+    const result = await requestPasswordReset(email.trim().toLowerCase());
+    sendSuccess(res, result, result.message);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token, newPassword } = req.body as { token?: unknown; newPassword?: unknown };
+    if (typeof token !== "string" || !token.trim()) {
+      throw new HttpException(400, "Reset token is required");
+    }
+    if (typeof newPassword !== "string") {
+      throw new HttpException(400, "New password is required");
+    }
+
+    const result = await resetPasswordService(token.trim(), newPassword);
+    sendSuccess(res, result, result.message);
   } catch (err) {
     next(err);
   }

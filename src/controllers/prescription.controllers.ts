@@ -1,46 +1,101 @@
-import { Request, Response, NextFunction } from "express";
-import { PrescriptionModel } from "../models/prescription.model";
-import { sendSuccess } from "../utils/apihelper.util";
+import { Response, NextFunction } from "express";
 import { AuthRequest } from "../middlewares/authorized.middleware";
+import { PrescriptionService } from "../services/prescription.services";
+import { sendSuccess } from "../utils/apihelper.util";
+import { HttpException } from "../exceptions/http-exception";
+import { CreatePrescriptionDTO, UpdatePrescriptionDTO } from "../types/prescription.type";
 
-export const uploadPrescription = async (req: AuthRequest, res: Response, next: NextFunction) => {
+const parseMedicines = (raw: unknown): string[] | undefined => {
+  if (raw === undefined) return undefined;
+  if (typeof raw !== "string") return undefined;
   try {
-    if (!req.file) {
-      throw new Error("No file uploaded");
-    }
+    return JSON.parse(raw) as string[];
+  } catch {
+    throw new HttpException(400, "Invalid medicines format");
+  }
+};
 
+const buildAttachmentUrl = (file?: Express.Multer.File) =>
+  file ? `http://localhost:5000/uploads/${file.filename}` : undefined;
+
+const getRouteId = (value: string | string[] | undefined) => {
+  if (!value) {
+    throw new HttpException(400, "Prescription id is required");
+  }
+  return Array.isArray(value) ? value[0] : value;
+};
+
+export const createPrescription = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
     if (!req.user) {
-      throw new Error("User not authenticated");
+      throw new HttpException(401, "User not authenticated");
     }
 
-    // Create image URL (using local storage for now)
-    const imageUrl = `http://10.0.2.2:5000/uploads/${req.file.filename}`;
+    const data: CreatePrescriptionDTO = {
+      title: req.body.title,
+      doctorName: req.body.doctorName,
+      hospital: req.body.hospital,
+      prescriptionDate: req.body.prescriptionDate,
+      expiryDate: req.body.expiryDate,
+      notes: req.body.notes,
+      medicines: parseMedicines(req.body.medicines),
+      attachmentUrl: buildAttachmentUrl(req.file),
+    };
 
-    // Create prescription record
-    const prescription = await PrescriptionModel.create({
-      userId: req.user.userId,
-      imageUrl: imageUrl,
-      uploadDate: new Date(),
-      notes: req.body.notes || "",
-      medicineName: req.body.medicineName || "",
-      medicineTime: req.body.medicineTime || "",
-    });
-
-    sendSuccess(res, prescription, "Prescription uploaded successfully", 201);
+    const prescription = await PrescriptionService.createPrescription(req.user.userId, data);
+    sendSuccess(res, prescription, "Prescription created successfully", 201);
   } catch (err) {
     next(err);
   }
 };
 
-export const getUserPrescriptions = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getPrescriptions = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
-      throw new Error("User not authenticated");
+      throw new HttpException(401, "User not authenticated");
     }
 
-    const prescriptions = await PrescriptionModel.find({ userId: req.user.userId }).sort({ uploadDate: -1 });
-    
+    const prescriptions = await PrescriptionService.getPrescriptionsByUserId(req.user.userId);
     sendSuccess(res, prescriptions, "Prescriptions retrieved successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getPrescriptionById = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user) {
+      throw new HttpException(401, "User not authenticated");
+    }
+
+    const id = getRouteId(req.params.id);
+    const prescription = await PrescriptionService.getPrescriptionById(id, req.user.userId);
+    sendSuccess(res, prescription, "Prescription retrieved successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updatePrescription = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user) {
+      throw new HttpException(401, "User not authenticated");
+    }
+
+    const id = getRouteId(req.params.id);
+    const data: UpdatePrescriptionDTO = {
+      title: req.body.title,
+      doctorName: req.body.doctorName,
+      hospital: req.body.hospital,
+      prescriptionDate: req.body.prescriptionDate,
+      expiryDate: req.body.expiryDate,
+      notes: req.body.notes,
+      medicines: parseMedicines(req.body.medicines),
+      attachmentUrl: buildAttachmentUrl(req.file),
+    };
+
+    const prescription = await PrescriptionService.updatePrescription(id, req.user.userId, data);
+    sendSuccess(res, prescription, "Prescription updated successfully");
   } catch (err) {
     next(err);
   }
@@ -48,22 +103,39 @@ export const getUserPrescriptions = async (req: AuthRequest, res: Response, next
 
 export const deletePrescription = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
-
     if (!req.user) {
-      throw new Error("User not authenticated");
+      throw new HttpException(401, "User not authenticated");
     }
 
-    // Find prescription and verify ownership
-    const prescription = await PrescriptionModel.findOne({ _id: id, userId: req.user.userId });
-    
-    if (!prescription) {
-      throw new Error("Prescription not found or unauthorized");
-    }
-
-    await PrescriptionModel.findByIdAndDelete(id);
-    
+    const id = getRouteId(req.params.id);
+    await PrescriptionService.deletePrescription(id, req.user.userId);
     sendSuccess(res, { id }, "Prescription deleted successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getActivePrescriptions = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user) {
+      throw new HttpException(401, "User not authenticated");
+    }
+
+    const prescriptions = await PrescriptionService.getActivePrescriptions(req.user.userId);
+    sendSuccess(res, prescriptions, "Active prescriptions retrieved successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getExpiredPrescriptions = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user) {
+      throw new HttpException(401, "User not authenticated");
+    }
+
+    const prescriptions = await PrescriptionService.getExpiredPrescriptions(req.user.userId);
+    sendSuccess(res, prescriptions, "Expired prescriptions retrieved successfully");
   } catch (err) {
     next(err);
   }

@@ -1,26 +1,56 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Schema } from "mongoose";
+import { IPrescription } from "../types/prescription.type";
 
-export interface IPrescription {
-  userId: string;
-  imageUrl: string;
-  uploadDate: Date;
-  notes?: string;
-  medicineName?: string;
-  medicineTime?: string;
-}
-
-export interface IPrescriptionDocument extends IPrescription, Document {}
-
-const prescriptionSchema = new Schema<IPrescriptionDocument>(
+const PrescriptionSchema = new Schema<IPrescription>(
   {
-    userId: { type: String, required: true },
-    imageUrl: { type: String, required: true },
-    uploadDate: { type: Date, default: Date.now },
-    notes: { type: String, default: "" },
-    medicineName: { type: String, default: "" },
-    medicineTime: { type: String, default: "" },
+    userId: {
+      type: String,
+      required: true,
+      ref: "User",
+    },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    doctorName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    hospital: {
+      type: String,
+      trim: true,
+    },
+    prescriptionDate: {
+      type: Date,
+      required: true,
+    },
+    expiryDate: {
+      type: Date,
+    },
+    medicines: {
+      type: [String],
+      default: [],
+    },
+    notes: {
+      type: String,
+      trim: true,
+    },
+    attachmentUrl: {
+      type: String,
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-export const PrescriptionModel = mongoose.model<IPrescriptionDocument>("Prescription", prescriptionSchema);
+// Index for faster queries
+PrescriptionSchema.index({ userId: 1, prescriptionDate: -1 });
+PrescriptionSchema.index({ userId: 1, expiryDate: 1 });
+
+export const PrescriptionModel = mongoose.model<IPrescription>(
+  "Prescription",
+  PrescriptionSchema
+);

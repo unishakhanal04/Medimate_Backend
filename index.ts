@@ -4,8 +4,11 @@ import app from "./src/app";
 
 const start = async () => {
   await connectDB();
-  app.listen(CONSTANTS.PORT, () => {
-    console.log(`Server running on port ${CONSTANTS.PORT}`);
+  const port = Number(CONSTANTS.PORT);
+  const host = CONSTANTS.HOST;
+
+  app.listen(port, host, () => {
+    console.log(`Server running on http://${host}:${port}`);
   });
 };
 

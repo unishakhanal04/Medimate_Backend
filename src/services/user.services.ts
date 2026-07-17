@@ -1,10 +1,13 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { UserRepository } from "../repositories/user.repository";
 import { RegisterDTO, LoginDTO, JwtPayload, PublicUser } from "../types/user.type";
 import { CONSTANTS } from "../config/constant";
 import { HttpException } from "../exceptions/http-exception";
 import { IUserDocument } from "../models/user.model";
+import { PasswordResetTokenModel } from "../models/password-reset-token.model";
+import { sendMail } from "../utils/mailer.util";
 
 export const toPublicUser = (user: IUserDocument): PublicUser => ({
   id: user._id.toString(),
@@ -137,4 +140,57 @@ export const updateUserPassword = async (userId: string, currentPassword: string
   await UserRepository.update(userId, { password: hashed });
 
   return { message: "Password updated successfully" };
+};
+
+export const requestPasswordReset = async (email: string) => {
+  const user = await UserRepository.findByEmail(email);
+
+  if (user) {
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    await PasswordResetTokenModel.create({
+      userId: user._id.toString(),
+      token,
+      expiresAt,
+    });
+
+    const resetLink = `${CONSTANTS.FRONTEND_URL}/reset-password?token=${token}`;
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[password-reset] reset link for ${user.email}: ${resetLink}`);
+    }
+
+    try {
+      await sendMail(
+        user.email,
+        "Reset your MediMate password",
+        `<p>Hi ${user.username},</p>` +
+          `<p>Click the link below to reset your password. This link expires in 1 hour.</p>` +
+          `<p><a href="${resetLink}">${resetLink}</a></p>` +
+          `<p>If you didn't request this, you can safely ignore this email.</p>`
+      );
+    } catch (err) {
+      console.error("Failed to send password reset email:", err);
+    }
+  }
+
+  return { message: "If that email exists, a reset link has been sent." };
+};
+
+export const resetPassword = async (token: string, newPassword: string) => {
+  if (newPassword.trim().length < 6) {
+    throw new HttpException(400, "New password must be at least 6 characters");
+  }
+
+  const resetToken = await PasswordResetTokenModel.findOne({ token, used: false });
+  if (!resetToken || resetToken.expiresAt.getTime() < Date.now()) {
+    throw new HttpException(400, "Invalid or expired reset link");
+  }
+
+  const hashed = await bcrypt.hash(newPassword, CONSTANTS.BCRYPT_ROUNDS);
+  await UserRepository.update(resetToken.userId, { password: hashed });
+  resetToken.used = true;
+  await resetToken.save();
+
+  return { message: "Password reset successfully" };
 };
