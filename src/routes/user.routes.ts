@@ -1,5 +1,14 @@
 import { Router } from "express";
-import { register, login, whoami, updateProfile, changePassword, uploadImage } from "../controllers/user.controllers";
+import {
+  register,
+  login,
+  whoami,
+  updateProfile,
+  changePassword,
+  uploadImage,
+  forgotPassword,
+  resetPassword,
+} from "../controllers/user.controllers";
 import { authorize } from "../middlewares/authorized.middleware";
 import { validateRegister, validateLogin } from "../middlewares/validation.middleware";
 import multer from "multer";
@@ -21,6 +30,8 @@ const upload = multer({ storage: storage });
 
 router.post("/register", validateRegister, register);
 router.post("/login", validateLogin, login);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 router.get("/profile", authorize, whoami);
 router.get("/whoami", authorize, whoami);
 router.put("/profile", authorize, upload.single('image'), updateProfile);

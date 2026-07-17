@@ -2,6 +2,13 @@ export type UserGender = "male" | "female" | "other";
 export type UserRole = "user" | "admin";
 export type UserStatus = "active" | "inactive";
 
+export interface IUserPreferences {
+  darkMode: boolean;
+  emailNotifications: boolean;
+  medicineReminders: boolean;
+  appointmentReminders: boolean;
+}
+
 export interface IUser {
   username: string;
   email: string;
@@ -10,6 +17,14 @@ export interface IUser {
   profileImage?: string | null;
   role: UserRole;
   status: UserStatus;
+  phone?: string;
+  dateOfBirth?: Date;
+  bloodGroup?: string;
+  allergies?: string[];
+  chronicDiseases?: string[];
+  height?: number;
+  weight?: number;
+  preferences?: IUserPreferences;
   createdAt?: Date;
   updatedAt?: Date;
 }
