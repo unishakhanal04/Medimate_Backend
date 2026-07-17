@@ -8,7 +8,7 @@ export const ProfileRepository = {
 
   async update(userId: string, updateData: Partial<IUser>) {
     return await UserModel.findByIdAndUpdate(userId, updateData, {
-      returnDocument: "after",
+      new: true,
       runValidators: true,
     });
   },
