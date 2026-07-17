@@ -1,26 +1,43 @@
 import { Router } from "express";
-import { uploadPrescription, getUserPrescriptions, deletePrescription } from "../controllers/prescription.controllers";
+import {
+  createPrescription,
+  getPrescriptions,
+  getPrescriptionById,
+  updatePrescription,
+  deletePrescription,
+  getActivePrescriptions,
+  getExpiredPrescriptions,
+} from "../controllers/prescription.controllers";
 import { authorize } from "../middlewares/authorized.middleware";
 import multer from "multer";
 
 const router = Router();
 
-// Configure multer for file uploads
+// Configure multer for attachment uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, "uploads/");
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + '.' + file.mimetype.split('/')[1]);
-  }
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, file.fieldname + "-" + uniqueSuffix + "." + file.mimetype.split("/")[1]);
+  },
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ storage });
 
-// Prescription routes
-router.post("/upload", authorize, upload.single('image'), uploadPrescription);
-router.get("/user/:userId", authorize, getUserPrescriptions);
-router.delete("/:id", authorize, deletePrescription);
+// All prescription routes require authentication
+router.use(authorize);
+
+// Dashboard-specific endpoints (must come before /:id)
+router.get("/active", getActivePrescriptions);
+router.get("/expired", getExpiredPrescriptions);
+
+// CRUD operations
+router.post("/", upload.single("attachment"), createPrescription);
+router.get("/", getPrescriptions);
+router.get("/:id", getPrescriptionById);
+router.put("/:id", upload.single("attachment"), updatePrescription);
+router.delete("/:id", deletePrescription);
 
 export default router;
