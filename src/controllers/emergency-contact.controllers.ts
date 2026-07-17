@@ -1,0 +1,10 @@
+import { NextFunction, Response } from "express";
+import { HttpException } from "../exceptions/http-exception";
+import { AuthRequest } from "../middlewares/authorized.middleware";
+import { EmergencyContactModel } from "../models/emergency-contact.model";
+import { sendSuccess } from "../utils/apihelper.util";
+const userId = (req: AuthRequest) => { if (!req.user?.userId) throw new HttpException(401, "User not authenticated"); return req.user.userId; };
+export const listContacts = async (req: AuthRequest, res: Response, next: NextFunction) => { try { sendSuccess(res, await EmergencyContactModel.find({ userId: userId(req) }).sort({ isPrimary: -1, createdAt: 1 })); } catch (e) { next(e); } };
+export const createContact = async (req: AuthRequest, res: Response, next: NextFunction) => { try { if (!req.body.name || !req.body.relationship || !req.body.phone) throw new HttpException(400, "Name, relationship and phone are required"); sendSuccess(res, await EmergencyContactModel.create({ ...req.body, userId: userId(req) }), "Emergency contact added", 201); } catch (e) { next(e); } };
+export const updateContact = async (req: AuthRequest, res: Response, next: NextFunction) => { try { const item = await EmergencyContactModel.findOneAndUpdate({ _id: req.params.id, userId: userId(req) }, req.body, { new: true }); if (!item) throw new HttpException(404, "Emergency contact not found"); sendSuccess(res, item, "Emergency contact updated"); } catch (e) { next(e); } };
+export const deleteContact = async (req: AuthRequest, res: Response, next: NextFunction) => { try { const item = await EmergencyContactModel.findOneAndDelete({ _id: req.params.id, userId: userId(req) }); if (!item) throw new HttpException(404, "Emergency contact not found"); sendSuccess(res, { id: req.params.id }, "Emergency contact deleted"); } catch (e) { next(e); } };
