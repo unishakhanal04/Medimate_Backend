@@ -73,12 +73,11 @@ export const updatePreferences = async (req: AuthRequest, res: Response, next: N
       throw new HttpException(401, "User not authenticated");
     }
 
-    const data: UpdatePreferencesDTO = {
-      darkMode: req.body.darkMode,
-      emailNotifications: req.body.emailNotifications,
-      medicineReminders: req.body.medicineReminders,
-      appointmentReminders: req.body.appointmentReminders,
-    };
+    const data: UpdatePreferencesDTO = {};
+    if (req.body.darkMode !== undefined) data.darkMode = req.body.darkMode;
+    if (req.body.emailNotifications !== undefined) data.emailNotifications = req.body.emailNotifications;
+    if (req.body.medicineReminders !== undefined) data.medicineReminders = req.body.medicineReminders;
+    if (req.body.appointmentReminders !== undefined) data.appointmentReminders = req.body.appointmentReminders;
 
     const profile = await ProfileService.updatePreferences(req.user.userId, data);
     sendSuccess(res, profile, "Preferences updated successfully");

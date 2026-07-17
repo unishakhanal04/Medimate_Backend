@@ -81,7 +81,7 @@ export const UserRepository = {
 
   async update(id: string, updateData: Partial<IUser> | AdminUpdateUserDTO) {
     return await UserModel.findByIdAndUpdate(id, updateData, {
-      returnDocument: 'after',
+      new: true,
       runValidators: true,
     });
   }

@@ -101,8 +101,17 @@ export const ProfileService = {
       throw new HttpException(404, "User not found");
     }
 
+    // user.preferences is a live Mongoose subdocument, not a plain object —
+    // spreading it directly leaks Mongoose internals ($__, _doc, etc.) into
+    // the result, which corrupts how the update gets cast back onto the
+    // schema. Convert to a plain object first.
+    const rawPreferences = user.preferences as (IUserPreferences & { toObject?: () => IUserPreferences }) | undefined;
+    const currentPreferences = rawPreferences?.toObject
+      ? rawPreferences.toObject()
+      : (rawPreferences ?? DEFAULT_PREFERENCES);
+
     const updatedPreferences: IUserPreferences = {
-      ...(user.preferences ?? DEFAULT_PREFERENCES),
+      ...currentPreferences,
       ...data,
     };
 
