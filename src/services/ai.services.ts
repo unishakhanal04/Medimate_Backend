@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI, ApiError } from "@google/genai";
 import { HttpException } from "../exceptions/http-exception";
 import { CONSTANTS } from "../config/constant";
 import { AiRepository } from "../repositories/ai.repository";
@@ -11,19 +11,16 @@ const SYSTEM_PROMPT =
 
 const HISTORY_LIMIT = 20;
 
-let anthropicClient: Anthropic | null = null;
+let geminiClient: GoogleGenAI | null = null;
 
 const getClient = () => {
-  if (!CONSTANTS.ANTHROPIC_API_KEY) {
-    throw new HttpException(
-      500,
-      "AI assistant is not configured. Set ANTHROPIC_API_KEY in the backend .env file."
-    );
+  if (!CONSTANTS.GEMINI_API_KEY) {
+    throw new HttpException(500, "AI assistant is not configured. Set GEMINI_API_KEY in the backend .env file.");
   }
-  if (!anthropicClient) {
-    anthropicClient = new Anthropic({ apiKey: CONSTANTS.ANTHROPIC_API_KEY });
+  if (!geminiClient) {
+    geminiClient = new GoogleGenAI({ apiKey: CONSTANTS.GEMINI_API_KEY });
   }
-  return anthropicClient;
+  return geminiClient;
 };
 
 export const AiService = {
@@ -39,17 +36,35 @@ export const AiService = {
 
     const recentMessages = await AiRepository.findRecentMessagesByUserId(userId, HISTORY_LIMIT);
 
-    const response = await client.messages.create({
-      model: CONSTANTS.ANTHROPIC_MODEL,
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      messages: recentMessages.map((m) => ({ role: m.role, content: m.content })),
-    });
-
-    const textBlock = response.content.find(
-      (block): block is Anthropic.TextBlock => block.type === "text"
-    );
-    const replyText = textBlock?.text ?? "";
+    let replyText: string;
+    try {
+      const response = await client.models.generateContent({
+        model: CONSTANTS.GEMINI_MODEL,
+        contents: recentMessages.map((m) => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: m.content }],
+        })),
+        config: {
+          systemInstruction: SYSTEM_PROMPT,
+          maxOutputTokens: 1024,
+        },
+      });
+      replyText = response.text ?? "";
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.status === 401 || err.status === 403) {
+          throw new HttpException(502, "AI assistant rejected the configured API key. Check GEMINI_API_KEY.");
+        }
+        if (err.status === 429) {
+          throw new HttpException(429, "AI assistant is rate-limited right now. Please try again shortly.");
+        }
+        if (err.status === 400) {
+          throw new HttpException(502, err.message || "AI assistant rejected the request.");
+        }
+        throw new HttpException(502, err.message || "Could not reach the AI assistant service. Please try again.");
+      }
+      throw err;
+    }
 
     await AiRepository.createMessage({ userId, conversationId, role: "assistant", content: replyText });
     await AiRepository.touchConversation(conversationId);
