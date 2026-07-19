@@ -14,6 +14,6 @@ export const CONSTANTS = {
   SMTP_PASS: process.env.SMTP_PASS || "",
   SMTP_FROM: process.env.SMTP_FROM || "MediMate <no-reply@medimate.local>",
   FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:3000",
-  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "",
-  ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5",
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY || "",
+  GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-2.5-flash",
 };
