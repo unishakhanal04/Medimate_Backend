@@ -15,6 +15,8 @@ export const PrescriptionService = {
       hospital: data.hospital,
       prescriptionDate: new Date(data.prescriptionDate),
       expiryDate: data.expiryDate ? new Date(data.expiryDate) : undefined,
+      diagnosis: data.diagnosis,
+      reviewDate: data.reviewDate ? new Date(data.reviewDate) : undefined,
       medicines: data.medicines ?? [],
       notes: data.notes,
       attachmentUrl: data.attachmentUrl,
@@ -47,6 +49,8 @@ export const PrescriptionService = {
     if (data.hospital !== undefined) updateData.hospital = data.hospital;
     if (data.prescriptionDate !== undefined) updateData.prescriptionDate = new Date(data.prescriptionDate);
     if (data.expiryDate !== undefined) updateData.expiryDate = data.expiryDate ? new Date(data.expiryDate) : undefined;
+    if (data.diagnosis !== undefined) updateData.diagnosis = data.diagnosis;
+    if (data.reviewDate !== undefined) updateData.reviewDate = data.reviewDate ? new Date(data.reviewDate) : undefined;
     if (data.medicines !== undefined) updateData.medicines = data.medicines;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.attachmentUrl !== undefined) updateData.attachmentUrl = data.attachmentUrl;

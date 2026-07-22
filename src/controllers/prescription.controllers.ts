@@ -1,6 +1,7 @@
 import { Response, NextFunction } from "express";
 import { AuthRequest } from "../middlewares/authorized.middleware";
 import { PrescriptionService } from "../services/prescription.services";
+import { PrescriptionOcrService } from "../services/prescription-ocr.services";
 import { sendSuccess } from "../utils/apihelper.util";
 import { HttpException } from "../exceptions/http-exception";
 import { CreatePrescriptionDTO, UpdatePrescriptionDTO } from "../types/prescription.type";
@@ -15,8 +16,8 @@ const parseMedicines = (raw: unknown): string[] | undefined => {
   }
 };
 
-const buildAttachmentUrl = (file?: Express.Multer.File) =>
-  file ? `http://localhost:5000/uploads/${file.filename}` : undefined;
+const buildAttachmentUrl = (req: AuthRequest, file?: Express.Multer.File) =>
+  file ? `${req.protocol}://${req.get("host")}/uploads/${file.filename}` : undefined;
 
 const getRouteId = (value: string | string[] | undefined) => {
   if (!value) {
@@ -37,9 +38,11 @@ export const createPrescription = async (req: AuthRequest, res: Response, next: 
       hospital: req.body.hospital,
       prescriptionDate: req.body.prescriptionDate,
       expiryDate: req.body.expiryDate,
+      diagnosis: req.body.diagnosis,
+      reviewDate: req.body.reviewDate,
       notes: req.body.notes,
       medicines: parseMedicines(req.body.medicines),
-      attachmentUrl: buildAttachmentUrl(req.file),
+      attachmentUrl: buildAttachmentUrl(req, req.file),
     };
 
     const prescription = await PrescriptionService.createPrescription(req.user.userId, data);
@@ -89,9 +92,11 @@ export const updatePrescription = async (req: AuthRequest, res: Response, next: 
       hospital: req.body.hospital,
       prescriptionDate: req.body.prescriptionDate,
       expiryDate: req.body.expiryDate,
+      diagnosis: req.body.diagnosis,
+      reviewDate: req.body.reviewDate,
       notes: req.body.notes,
       medicines: parseMedicines(req.body.medicines),
-      attachmentUrl: buildAttachmentUrl(req.file),
+      attachmentUrl: buildAttachmentUrl(req, req.file),
     };
 
     const prescription = await PrescriptionService.updatePrescription(id, req.user.userId, data);
@@ -110,6 +115,22 @@ export const deletePrescription = async (req: AuthRequest, res: Response, next: 
     const id = getRouteId(req.params.id);
     await PrescriptionService.deletePrescription(id, req.user.userId);
     sendSuccess(res, { id }, "Prescription deleted successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const extractPrescriptionData = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user) {
+      throw new HttpException(401, "User not authenticated");
+    }
+    if (!req.file) {
+      throw new HttpException(400, "An attachment file is required");
+    }
+
+    const data = await PrescriptionOcrService.extractFromFile(req.user.userId, req.file);
+    sendSuccess(res, data, "Prescription data extracted successfully");
   } catch (err) {
     next(err);
   }
