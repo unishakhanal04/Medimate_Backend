@@ -17,6 +17,14 @@ const getTransporter = () => {
   return transporter;
 };
 
+export const verifySmtpConnection = async (): Promise<boolean> => {
+  if (!CONSTANTS.SMTP_HOST) {
+    return false;
+  }
+  await getTransporter().verify();
+  return true;
+};
+
 export const sendMail = async (to: string, subject: string, html: string) => {
   if (!CONSTANTS.SMTP_HOST) {
     throw new Error("SMTP is not configured. Set SMTP_HOST/SMTP_USER/SMTP_PASS in .env");
