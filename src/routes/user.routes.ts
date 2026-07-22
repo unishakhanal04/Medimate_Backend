@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   register,
   login,
+  googleLogin,
   whoami,
   updateProfile,
   changePassword,
@@ -30,6 +31,7 @@ const upload = multer({ storage: storage });
 
 router.post("/register", validateRegister, register);
 router.post("/login", validateLogin, login);
+router.post("/google", googleLogin);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 router.get("/profile", authorize, whoami);

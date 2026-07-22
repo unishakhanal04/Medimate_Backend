@@ -29,6 +29,9 @@ const userSchema = new Schema<IUserDocument>(
     chronicDiseases: { type: [String], default: [] },
     height: { type: Number },
     weight: { type: Number },
+    passwordChangedAt: { type: Date },
+    notificationsLastSeenAt: { type: Date },
+    lastLoginAt: { type: Date },
     preferences: {
       type: preferencesSchema,
       default: () => ({

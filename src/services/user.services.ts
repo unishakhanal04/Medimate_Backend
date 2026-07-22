@@ -8,6 +8,7 @@ import { HttpException } from "../exceptions/http-exception";
 import { IUserDocument } from "../models/user.model";
 import { PasswordResetTokenModel } from "../models/password-reset-token.model";
 import { sendMail } from "../utils/mailer.util";
+import { verifyGoogleIdToken } from "../utils/google.util";
 
 export const toPublicUser = (user: IUserDocument): PublicUser => ({
   id: user._id.toString(),
@@ -19,6 +20,7 @@ export const toPublicUser = (user: IUserDocument): PublicUser => ({
   status: user.status,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
+  lastLoginAt: user.lastLoginAt,
 });
 
 const createAuthResponse = (user: IUserDocument) => {
@@ -69,6 +71,32 @@ export const loginUser = async (dto: LoginDTO) => {
   if (!isMatch) {
     throw new HttpException(401, "Invalid credentials");
   }
+
+  await UserRepository.update(user._id.toString(), { lastLoginAt: new Date() });
+
+  return createAuthResponse(user);
+};
+
+export const loginWithGoogle = async (idToken: string) => {
+  const profile = await verifyGoogleIdToken(idToken);
+
+  let user = await UserRepository.findByEmail(profile.email);
+
+  if (!user) {
+    const randomPassword = crypto.randomBytes(32).toString("hex");
+    const hashed = await bcrypt.hash(randomPassword, CONSTANTS.BCRYPT_ROUNDS);
+    user = await UserRepository.create({
+      username: profile.name,
+      email: profile.email,
+      gender: "other",
+      password: hashed,
+      role: "user",
+      status: "active",
+      profileImage: profile.picture ?? null,
+    });
+  }
+
+  await UserRepository.update(user._id.toString(), { lastLoginAt: new Date() });
 
   return createAuthResponse(user);
 };
@@ -137,7 +165,7 @@ export const updateUserPassword = async (userId: string, currentPassword: string
   }
 
   const hashed = await bcrypt.hash(newPassword, CONSTANTS.BCRYPT_ROUNDS);
-  await UserRepository.update(userId, { password: hashed });
+  await UserRepository.update(userId, { password: hashed, passwordChangedAt: new Date() });
 
   return { message: "Password updated successfully" };
 };
@@ -188,7 +216,7 @@ export const resetPassword = async (token: string, newPassword: string) => {
   }
 
   const hashed = await bcrypt.hash(newPassword, CONSTANTS.BCRYPT_ROUNDS);
-  await UserRepository.update(resetToken.userId, { password: hashed });
+  await UserRepository.update(resetToken.userId, { password: hashed, passwordChangedAt: new Date() });
   resetToken.used = true;
   await resetToken.save();
 

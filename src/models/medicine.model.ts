@@ -58,6 +58,13 @@ const MedicineSchema = new Schema<IMedicine>(
       type: Number,
       default: 5,
     },
+    expiryDate: {
+      type: Date,
+    },
+    mealInstruction: {
+      type: String,
+      enum: ["before_food", "after_food", "empty_stomach"],
+    },
   },
   {
     timestamps: true,

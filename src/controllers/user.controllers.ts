@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import {
   registerUser,
   loginUser,
+  loginWithGoogle,
   getUserById,
   updateUserProfile,
   updateUserPassword,
@@ -30,6 +31,20 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
   }
 };
 
+export const googleLogin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { credential } = req.body as { credential?: unknown };
+    if (typeof credential !== "string" || !credential) {
+      throw new HttpException(400, "Google credential is required");
+    }
+
+    const result = await loginWithGoogle(credential);
+    sendSuccess(res, result, "Signed in with Google successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const getProfile = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user || !req.user.userId) {
@@ -52,8 +67,9 @@ export const uploadImage = async (req: AuthRequest, res: Response, next: NextFun
     // 1. Save the file to cloud storage (AWS S3, Cloudinary, etc.)
     // 2. Return the URL of the uploaded file
 
-    // For web frontend, use localhost
-    const imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+    // Derived from the incoming request so it resolves for whichever host/IP
+    // the client actually used to reach the server (not just this machine).
+    const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
 
     sendSuccess(res, { imageUrl }, "Image uploaded successfully");
   } catch (err) {
@@ -86,7 +102,7 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
     if (body.gender) updateData.gender = body.gender;
     if (body.profileImage !== undefined) updateData.profileImage = body.profileImage;
     if (req.file) {
-      updateData.profileImage = `http://localhost:5000/uploads/${req.file.filename}`;
+      updateData.profileImage = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
     }
 
     const user = await updateUserProfile(req.user.userId, updateData);

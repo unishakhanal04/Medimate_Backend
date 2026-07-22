@@ -8,6 +8,7 @@ import {
   getTodayMedicines,
   markMedicineAsTaken,
   getAdherenceStats,
+  checkMedicineInteractions,
 } from "../controllers/medicine.controllers";
 import { authorize } from "../middlewares/authorized.middleware";
 
@@ -19,6 +20,7 @@ router.use(authorize);
 // Dashboard-specific endpoints (must come before /:id)
 router.get("/today/list", getTodayMedicines);
 router.get("/stats/adherence", getAdherenceStats);
+router.post("/check-interactions", checkMedicineInteractions);
 
 // CRUD operations
 router.post("/", createMedicine);

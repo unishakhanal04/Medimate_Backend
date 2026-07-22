@@ -25,6 +25,8 @@ export const MedicineService = {
       status: "active",
       quantity: data.quantity,
       refillThreshold: data.refillThreshold,
+      expiryDate: data.expiryDate ? new Date(data.expiryDate) : undefined,
+      mealInstruction: data.mealInstruction,
     };
 
     const medicine = await MedicineRepository.create(medicineData);
@@ -64,6 +66,8 @@ export const MedicineService = {
     if (data.status !== undefined) updateData.status = data.status;
     if (data.quantity !== undefined) updateData.quantity = data.quantity;
     if (data.refillThreshold !== undefined) updateData.refillThreshold = data.refillThreshold;
+    if (data.expiryDate !== undefined) updateData.expiryDate = data.expiryDate ? new Date(data.expiryDate) : undefined;
+    if (data.mealInstruction !== undefined) updateData.mealInstruction = data.mealInstruction;
 
     const updatedMedicine = await MedicineRepository.update(id, updateData);
     if (!updatedMedicine) {
@@ -316,6 +320,100 @@ export const MedicineService = {
         quantity: medicine.quantity as number,
         refillThreshold: medicine.refillThreshold ?? 5,
       }));
+  },
+
+  async getMonthlyAdherenceTrend(userId: string): Promise<{ currentPercent: number; previousPercent: number }> {
+    const activeMedicines = await MedicineRepository.findActiveByUserId(userId);
+
+    const localDayKey = (d: Date) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+    const storedDayKey = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+
+    const scheduledForDay = (dayKey: number) => {
+      let count = 0;
+      for (const medicine of activeMedicines) {
+        const startKey = storedDayKey(new Date(medicine.startDate));
+        const endKey = medicine.endDate ? storedDayKey(new Date(medicine.endDate)) : null;
+        if (dayKey < startKey || (endKey !== null && dayKey > endKey)) continue;
+        if (medicine.frequency === "daily" || medicine.frequency === "weekly") {
+          count += medicine.times.length;
+        }
+      }
+      return count;
+    };
+
+    const percentForWindow = async (daysAgoStart: number, daysAgoEnd: number) => {
+      const end = new Date();
+      end.setDate(end.getDate() - daysAgoStart);
+      end.setHours(23, 59, 59, 999);
+      const start = new Date();
+      start.setDate(start.getDate() - daysAgoEnd);
+      start.setHours(0, 0, 0, 0);
+
+      const logs = await MedicineRepository.findLogsByUserId(userId, start, end);
+      const taken = logs.filter((log) => log.status === "taken").length;
+
+      let scheduled = 0;
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        scheduled += scheduledForDay(localDayKey(d));
+      }
+
+      return scheduled > 0 ? Math.round((taken / scheduled) * 100) : 0;
+    };
+
+    const [currentPercent, previousPercent] = await Promise.all([
+      percentForWindow(0, 29),
+      percentForWindow(30, 59),
+    ]);
+
+    return { currentPercent, previousPercent };
+  },
+
+  async getBestAdherenceDay(userId: string, days: number = 60): Promise<{ day: string; percentage: number } | null> {
+    const activeMedicines = await MedicineRepository.findActiveByUserId(userId);
+    const today = new Date();
+    const rangeStart = new Date(today);
+    rangeStart.setDate(rangeStart.getDate() - days);
+    rangeStart.setHours(0, 0, 0, 0);
+
+    const logs = await MedicineRepository.findLogsByUserId(userId, rangeStart, today);
+
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const takenByDow = new Array(7).fill(0);
+    const scheduledByDow = new Array(7).fill(0);
+
+    const storedDayKey = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+
+    for (let d = new Date(rangeStart); d <= today; d.setDate(d.getDate() + 1)) {
+      const dayKey = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+      const dow = d.getDay();
+      for (const medicine of activeMedicines) {
+        const startKey = storedDayKey(new Date(medicine.startDate));
+        const endKey = medicine.endDate ? storedDayKey(new Date(medicine.endDate)) : null;
+        if (dayKey < startKey || (endKey !== null && dayKey > endKey)) continue;
+        if (medicine.frequency === "daily" || medicine.frequency === "weekly") {
+          scheduledByDow[dow] += medicine.times.length;
+        }
+      }
+    }
+
+    for (const log of logs) {
+      if (log.status !== "taken") continue;
+      takenByDow[new Date(log.takenAt).getDay()]++;
+    }
+
+    let bestIndex = -1;
+    let bestPercentage = -1;
+    for (let i = 0; i < 7; i++) {
+      if (scheduledByDow[i] === 0) continue;
+      const percentage = Math.round((takenByDow[i] / scheduledByDow[i]) * 100);
+      if (percentage > bestPercentage) {
+        bestPercentage = percentage;
+        bestIndex = i;
+      }
+    }
+
+    if (bestIndex === -1) return null;
+    return { day: dayNames[bestIndex], percentage: bestPercentage };
   },
 
   async getMedicineWiseProgress(userId: string, days: number): Promise<MedicineProgress[]> {

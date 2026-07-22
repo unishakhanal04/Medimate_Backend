@@ -13,6 +13,14 @@ import {
   UserStatus,
 } from "../types/user.type";
 import { toPublicUser } from "./user.services";
+import { AuditLogService } from "./audit-log.services";
+import { MedicineService } from "./medicine.services";
+import { AppointmentService } from "./appointment.services";
+import { PrescriptionService } from "./prescription.services";
+import { TimelineService } from "./timeline.services";
+import { EmergencyContactModel } from "../models/emergency-contact.model";
+import { ConversationModel } from "../models/conversation.model";
+import { AdminUserActivity } from "../types/admin.type";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const VALID_GENDERS: UserGender[] = ["male", "female", "other"];
@@ -68,8 +76,10 @@ export const listUsersForAdmin = async (query: Partial<UserListQuery>): Promise<
   const page = Math.max(1, Number(query.page) || 1);
   const limit = Math.min(50, Math.max(1, Number(query.limit) || 10));
   const search = typeof query.search === "string" ? query.search : undefined;
+  const status = query.status === "active" || query.status === "inactive" ? query.status : undefined;
+  const sort = query.sort === "mostActive" ? "mostActive" : undefined;
 
-  return UserRepository.findUsers({ page, limit, search });
+  return UserRepository.findUsers({ page, limit, search, status, sort });
 };
 
 export const getAdminUserById = async (userId: string) => {
@@ -81,6 +91,120 @@ export const getAdminUserById = async (userId: string) => {
   }
 
   return toPublicUser(user);
+};
+
+export const getUserActivitySummary = async (userId: string): Promise<AdminUserActivity> => {
+  ensureValidObjectId(userId);
+
+  const user = await UserRepository.findById(userId);
+  if (!user) {
+    throw new HttpException(404, "User not found");
+  }
+
+  const [
+    allMedicines,
+    activeMedicines,
+    allAppointments,
+    upcomingAppointments,
+    allPrescriptions,
+    activePrescriptions,
+    emergencyContacts,
+    timeline,
+    adherenceStats,
+    aiConversationCount,
+  ] = await Promise.all([
+    MedicineService.getMedicinesByUserId(userId),
+    MedicineService.getActiveMedicinesByUserId(userId),
+    AppointmentService.getAppointmentsByUserId(userId),
+    AppointmentService.getUpcomingAppointments(userId),
+    PrescriptionService.getPrescriptionsByUserId(userId),
+    PrescriptionService.getActivePrescriptions(userId),
+    EmergencyContactModel.find({ userId }).sort({ isPrimary: -1, createdAt: 1 }),
+    TimelineService.getTimeline(userId, { page: 1, pageSize: 10 }),
+    MedicineService.getAdherenceStats(userId),
+    ConversationModel.countDocuments({ userId }),
+  ]);
+
+  const recentAppointments = [...allAppointments].sort(
+    (a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime()
+  );
+
+  return {
+    user: {
+      id: user._id.toString(),
+      username: user.username,
+      email: user.email,
+      gender: user.gender,
+      role: user.role,
+      status: user.status,
+      profileImage: user.profileImage,
+      createdAt: user.createdAt,
+      lastLoginAt: user.lastLoginAt,
+    },
+    profile: {
+      phone: user.phone,
+      dateOfBirth: user.dateOfBirth,
+      bloodGroup: user.bloodGroup,
+      height: user.height,
+      weight: user.weight,
+      allergies: user.allergies ?? [],
+      chronicDiseases: user.chronicDiseases ?? [],
+    },
+    medicines: {
+      total: allMedicines.length,
+      active: activeMedicines.length,
+      recent: allMedicines.slice(0, 5).map((m) => ({
+        id: m._id.toString(),
+        name: m.name,
+        dosage: m.dosage,
+        status: m.status,
+      })),
+    },
+    appointments: {
+      total: allAppointments.length,
+      upcoming: upcomingAppointments.length,
+      recent: recentAppointments.slice(0, 5).map((a) => ({
+        id: a._id.toString(),
+        doctorName: a.doctorName,
+        purpose: a.purpose,
+        appointmentDate: a.appointmentDate,
+        status: a.status,
+      })),
+    },
+    prescriptions: {
+      total: allPrescriptions.length,
+      active: activePrescriptions.length,
+      recent: allPrescriptions.slice(0, 5).map((p) => ({
+        id: p._id.toString(),
+        title: p.title,
+        doctorName: p.doctorName,
+        prescriptionDate: p.prescriptionDate,
+      })),
+    },
+    emergencyContacts: {
+      total: emergencyContacts.length,
+      contacts: emergencyContacts.map((c) => ({
+        id: c._id.toString(),
+        name: c.name,
+        relationship: c.relationship,
+        phone: c.phone,
+        isPrimary: c.isPrimary,
+      })),
+    },
+    timeline: {
+      items: timeline.items,
+    },
+    reports: {
+      weeklyAdherence: adherenceStats.weeklyAdherence,
+      streak: adherenceStats.streak,
+      medicinesTaken: adherenceStats.medicinesTaken,
+      totalScheduled: adherenceStats.totalScheduled,
+    },
+    aiUsage: {
+      totalConversations: aiConversationCount,
+    },
+    subscription: null,
+  };
 };
 
 export const createUserByAdmin = async (dto: AdminCreateUserDTO) => {
@@ -119,7 +243,7 @@ export const createUserByAdmin = async (dto: AdminCreateUserDTO) => {
   return toPublicUser(user);
 };
 
-export const updateUserByAdmin = async (userId: string, dto: AdminUpdateUserDTO) => {
+export const updateUserByAdmin = async (userId: string, dto: AdminUpdateUserDTO, adminId?: string) => {
   ensureValidObjectId(userId);
 
   const currentUser = await UserRepository.findById(userId);
@@ -175,6 +299,26 @@ export const updateUserByAdmin = async (userId: string, dto: AdminUpdateUserDTO)
     throw new HttpException(404, "User not found");
   }
 
+  if (adminId) {
+    const changedFields = Object.keys(updateData);
+    const isStatusOnlyChange = changedFields.length === 1 && changedFields[0] === "status";
+
+    await AuditLogService.log({
+      adminId,
+      action: isStatusOnlyChange
+        ? updateData.status === "active"
+          ? "user_activated"
+          : "user_deactivated"
+        : "user_updated",
+      targetType: "user",
+      targetId: userId,
+      targetLabel: updatedUser.username,
+      description: isStatusOnlyChange
+        ? `${updateData.status === "active" ? "Activated" : "Deactivated"} user ${updatedUser.username}`
+        : `Updated user ${updatedUser.username} (${changedFields.join(", ")})`,
+    });
+  }
+
   return toPublicUser(updatedUser);
 };
 
@@ -189,6 +333,15 @@ export const deleteUserByAdmin = async (targetUserId: string, adminUserId: strin
   if (!deletedUser) {
     throw new HttpException(404, "User not found");
   }
+
+  await AuditLogService.log({
+    adminId: adminUserId,
+    action: "user_deleted",
+    targetType: "user",
+    targetId: targetUserId,
+    targetLabel: deletedUser.username,
+    description: `Deleted user ${deletedUser.username}`,
+  });
 
   return { id: deletedUser._id.toString() };
 };

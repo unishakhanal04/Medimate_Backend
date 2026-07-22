@@ -33,22 +33,26 @@ export const UserRepository = {
     return await UserModel.find().select("-password");
   },
 
-  async findUsers({ page, limit, search }: UserListQuery): Promise<UserListResult> {
+  async findUsers({ page, limit, search, status, sort }: UserListQuery): Promise<UserListResult> {
     const trimmedSearch = search?.trim();
-    const query = trimmedSearch
-      ? {
-          $or: [
-            { username: { $regex: trimmedSearch, $options: "i" } },
-            { email: { $regex: trimmedSearch, $options: "i" } },
-          ],
-        }
-      : {};
+    const query: Record<string, unknown> = {};
+    if (trimmedSearch) {
+      query.$or = [
+        { username: { $regex: trimmedSearch, $options: "i" } },
+        { email: { $regex: trimmedSearch, $options: "i" } },
+      ];
+    }
+    if (status) {
+      query.status = status;
+    }
+
+    const sortOption: Record<string, 1 | -1> = sort === "mostActive" ? { lastLoginAt: -1 } : { createdAt: -1 };
 
     const skip = (page - 1) * limit;
     const [users, total] = await Promise.all([
       UserModel.find(query)
         .select("-password")
-        .sort({ createdAt: -1 })
+        .sort(sortOption)
         .skip(skip)
         .limit(limit),
       UserModel.countDocuments(query),
@@ -65,6 +69,7 @@ export const UserRepository = {
         status: user.status,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
+        lastLoginAt: user.lastLoginAt,
       })),
       meta: {
         page,

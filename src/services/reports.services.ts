@@ -7,6 +7,7 @@ import {
   MedicinesReport,
   PrescriptionsReport,
   AppointmentsReport,
+  ReportsInsights,
 } from "../types/reports.type";
 
 export const ReportsService = {
@@ -114,6 +115,41 @@ export const ReportsService = {
             appointmentTime: nextAppointment.appointmentTime,
           }
         : null,
+    };
+  },
+
+  async getInsights(userId: string): Promise<ReportsInsights> {
+    const [trend, bestDay, medicineProgress, allMedicines, appointmentCounts] = await Promise.all([
+      MedicineService.getMonthlyAdherenceTrend(userId),
+      MedicineService.getBestAdherenceDay(userId),
+      MedicineService.getMedicineWiseProgress(userId, 30),
+      MedicineService.getMedicinesByUserId(userId),
+      ReportsRepository.countAppointmentsByStatus(userId),
+    ]);
+
+    const deltaPercent = trend.currentPercent - trend.previousPercent;
+    const direction = deltaPercent > 0 ? "up" : deltaPercent < 0 ? "down" : "flat";
+
+    const mostMissed = medicineProgress
+      .map((m) => ({ name: m.name, missedCount: m.dosesScheduled - m.dosesTaken }))
+      .filter((m) => m.missedCount > 0)
+      .sort((a, b) => b.missedCount - a.missedCount)[0];
+
+    const attendanceBase = appointmentCounts.completed + appointmentCounts.cancelled;
+    const appointmentAttendanceRate =
+      attendanceBase > 0 ? Math.round((appointmentCounts.completed / attendanceBase) * 100) : 0;
+
+    return {
+      adherenceTrend: {
+        currentPercent: trend.currentPercent,
+        previousPercent: trend.previousPercent,
+        deltaPercent,
+        direction,
+      },
+      mostMissedMedicine: mostMissed ?? null,
+      bestAdherenceDay: bestDay,
+      totalMedicinesCompleted: allMedicines.filter((m) => m.status === "completed").length,
+      appointmentAttendanceRate,
     };
   },
 };

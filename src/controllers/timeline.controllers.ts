@@ -10,10 +10,14 @@ const validTypes: TimelineEventType[] = [
   "medicine_taken",
   "medicine_skipped",
   "medicine_missed",
+  "reminder_snoozed",
   "prescription_uploaded",
-  "appointment",
+  "appointment_created",
+  "appointment_completed",
+  "emergency_contact_added",
   "ai_conversation",
   "profile_updated",
+  "password_changed",
 ];
 
 export const getTimeline = async (req: AuthRequest, res: Response, next: NextFunction) => {

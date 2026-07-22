@@ -29,6 +29,13 @@ const PrescriptionSchema = new Schema<IPrescription>(
     expiryDate: {
       type: Date,
     },
+    diagnosis: {
+      type: String,
+      trim: true,
+    },
+    reviewDate: {
+      type: Date,
+    },
     medicines: {
       type: [String],
       default: [],

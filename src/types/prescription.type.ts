@@ -6,6 +6,8 @@ export interface IPrescription {
   hospital?: string;
   prescriptionDate: Date;
   expiryDate?: Date;
+  diagnosis?: string;
+  reviewDate?: Date;
   medicines: string[];
   notes?: string;
   attachmentUrl?: string;
@@ -19,6 +21,8 @@ export interface CreatePrescriptionDTO {
   hospital?: string;
   prescriptionDate: string;
   expiryDate?: string;
+  diagnosis?: string;
+  reviewDate?: string;
   medicines?: string[];
   notes?: string;
   attachmentUrl?: string;
@@ -30,6 +34,8 @@ export interface UpdatePrescriptionDTO {
   hospital?: string;
   prescriptionDate?: string;
   expiryDate?: string;
+  diagnosis?: string;
+  reviewDate?: string;
   medicines?: string[];
   notes?: string;
   attachmentUrl?: string;

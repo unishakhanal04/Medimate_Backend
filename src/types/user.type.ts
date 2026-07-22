@@ -25,6 +25,9 @@ export interface IUser {
   height?: number;
   weight?: number;
   preferences?: IUserPreferences;
+  passwordChangedAt?: Date;
+  notificationsLastSeenAt?: Date;
+  lastLoginAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -39,6 +42,7 @@ export interface PublicUser {
   status: UserStatus;
   createdAt?: Date;
   updatedAt?: Date;
+  lastLoginAt?: Date;
 }
 
 export interface RegisterDTO {
@@ -82,6 +86,8 @@ export interface UserListQuery {
   page: number;
   limit: number;
   search?: string;
+  status?: UserStatus;
+  sort?: "recent" | "mostActive";
 }
 
 export interface UserListResult {

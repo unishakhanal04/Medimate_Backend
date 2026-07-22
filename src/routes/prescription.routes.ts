@@ -7,6 +7,7 @@ import {
   deletePrescription,
   getActivePrescriptions,
   getExpiredPrescriptions,
+  extractPrescriptionData,
 } from "../controllers/prescription.controllers";
 import { authorize } from "../middlewares/authorized.middleware";
 import multer from "multer";
@@ -26,12 +27,17 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+// OCR extraction reads the file in-memory and never persists it — the user still
+// re-submits the same file to POST/PUT (disk storage) when they actually save.
+const extractUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
 // All prescription routes require authentication
 router.use(authorize);
 
 // Dashboard-specific endpoints (must come before /:id)
 router.get("/active", getActivePrescriptions);
 router.get("/expired", getExpiredPrescriptions);
+router.post("/extract", extractUpload.single("attachment"), extractPrescriptionData);
 
 // CRUD operations
 router.post("/", upload.single("attachment"), createPrescription);

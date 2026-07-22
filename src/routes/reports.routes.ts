@@ -9,6 +9,7 @@ import {
   getMedicinesReport,
   getPrescriptionsReport,
   getAppointmentsReport,
+  getInsights,
 } from "../controllers/reports.controllers";
 
 const router = Router();
@@ -20,6 +21,7 @@ router.get("/adherence", getAdherenceReport);
 router.get("/medicines", getMedicinesReport);
 router.get("/prescriptions", getPrescriptionsReport);
 router.get("/appointments", getAppointmentsReport);
+router.get("/insights", getInsights);
 
 // Existing endpoints — kept for backward compatibility (dashboard + Medicines page
 // already depend on getRefillAlerts via reportsService)
