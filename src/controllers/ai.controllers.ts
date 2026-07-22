@@ -20,6 +20,17 @@ export const chat = async (req: AuthRequest, res: Response, next: NextFunction) 
   }
 };
 
+export const getUsage = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user?.userId) throw new HttpException(401, "User not authenticated");
+
+    const usage = await AiService.getUsage(req.user.userId);
+    sendSuccess(res, usage, "AI usage retrieved successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const getHistory = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user?.userId) throw new HttpException(401, "User not authenticated");
