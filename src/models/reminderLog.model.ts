@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-export type ReminderLogStatus = "taken" | "snoozed";
+export type ReminderLogStatus = "taken" | "snoozed" | "skipped";
 
 export interface IReminderLogDocument extends Document {
   userId: string;
@@ -14,7 +14,7 @@ const reminderLogSchema = new Schema<IReminderLogDocument>(
     userId: { type: String, required: true, index: true },
     reminderId: { type: String, required: true, index: true },
     date: { type: String, required: true },
-    status: { type: String, enum: ["taken", "snoozed"], required: true },
+    status: { type: String, enum: ["taken", "snoozed", "skipped"], required: true },
   },
   { timestamps: true }
 );
