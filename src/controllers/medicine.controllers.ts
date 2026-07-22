@@ -1,7 +1,9 @@
 import { Response, NextFunction } from "express";
 import { AuthRequest } from "../middlewares/authorized.middleware";
 import { MedicineService } from "../services/medicine.services";
+import { DrugInteractionService } from "../services/drug-interaction.services";
 import { sendSuccess } from "../utils/apihelper.util";
+import { HttpException } from "../exceptions/http-exception";
 import { CreateMedicineDTO, UpdateMedicineDTO } from "../types/medicine.type";
 
 export const createMedicine = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -110,6 +112,28 @@ export const markMedicineAsTaken = async (req: AuthRequest, res: Response, next:
 
     const log = await MedicineService.markMedicineAsTaken(medicineId, req.user.userId, scheduledTime);
     sendSuccess(res, log, "Medicine marked as taken");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const checkMedicineInteractions = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user || !req.user.userId) {
+      throw new HttpException(401, "User not authenticated");
+    }
+
+    const { name, excludeMedicineId } = req.body as { name?: unknown; excludeMedicineId?: unknown };
+    if (typeof name !== "string" || !name.trim()) {
+      throw new HttpException(400, "A medicine name is required");
+    }
+
+    const warnings = await DrugInteractionService.checkAgainstActiveMedicines(
+      req.user.userId,
+      name.trim(),
+      typeof excludeMedicineId === "string" ? excludeMedicineId : undefined
+    );
+    sendSuccess(res, { warnings }, "Interaction check complete");
   } catch (err) {
     next(err);
   }

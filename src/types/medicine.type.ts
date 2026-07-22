@@ -11,6 +11,8 @@ export interface IMedicine {
   status: "active" | "inactive" | "completed";
   quantity?: number;
   refillThreshold?: number;
+  expiryDate?: Date;
+  mealInstruction?: "before_food" | "after_food" | "empty_stomach";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +37,8 @@ export interface CreateMedicineDTO {
   notes?: string;
   quantity?: number;
   refillThreshold?: number;
+  expiryDate?: string;
+  mealInstruction?: "before_food" | "after_food" | "empty_stomach";
 }
 
 export interface UpdateMedicineDTO {
@@ -48,6 +52,8 @@ export interface UpdateMedicineDTO {
   status?: "active" | "inactive" | "completed";
   quantity?: number;
   refillThreshold?: number;
+  expiryDate?: string;
+  mealInstruction?: "before_food" | "after_food" | "empty_stomach";
 }
 
 export interface TodayMedicine {
