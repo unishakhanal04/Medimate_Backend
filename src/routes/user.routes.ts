@@ -8,6 +8,7 @@ import {
   changePassword,
   uploadImage,
   forgotPassword,
+  verifyOtp,
   resetPassword,
 } from "../controllers/user.controllers";
 import { authorize } from "../middlewares/authorized.middleware";
@@ -33,6 +34,7 @@ router.post("/register", validateRegister, register);
 router.post("/login", validateLogin, login);
 router.post("/google", googleLogin);
 router.post("/forgot-password", forgotPassword);
+router.post("/verify-otp", verifyOtp);
 router.post("/reset-password", resetPassword);
 router.get("/profile", authorize, whoami);
 router.get("/whoami", authorize, whoami);
