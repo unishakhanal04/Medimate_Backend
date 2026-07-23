@@ -174,35 +174,79 @@ export const requestPasswordReset = async (email: string) => {
   const user = await UserRepository.findByEmail(email);
 
   if (user) {
+    // Invalidate any still-pending OTP requests for this user before issuing a new one.
+    await PasswordResetTokenModel.updateMany(
+      { userId: user._id.toString(), used: false },
+      { used: true }
+    );
+
+    const otp = crypto.randomInt(100000, 1000000).toString();
+    const otpHash = await bcrypt.hash(otp, CONSTANTS.BCRYPT_ROUNDS);
     const token = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const now = Date.now();
+
     await PasswordResetTokenModel.create({
       userId: user._id.toString(),
       token,
-      expiresAt,
+      expiresAt: new Date(now + 30 * 60 * 1000),
+      otpHash,
+      otpExpiresAt: new Date(now + 10 * 60 * 1000),
+      otpAttempts: 0,
+      otpVerified: false,
+      used: false,
     });
 
-    const resetLink = `${CONSTANTS.FRONTEND_URL}/reset-password?token=${token}`;
-
     if (process.env.NODE_ENV !== "production") {
-      console.log(`[password-reset] reset link for ${user.email}: ${resetLink}`);
+      console.log(`[password-reset] OTP for ${user.email}: ${otp}`);
     }
 
     try {
       await sendMail(
         user.email,
-        "Reset your MediMate password",
+        "Your MediMate password reset code",
         `<p>Hi ${user.username},</p>` +
-          `<p>Click the link below to reset your password. This link expires in 1 hour.</p>` +
-          `<p><a href="${resetLink}">${resetLink}</a></p>` +
-          `<p>If you didn't request this, you can safely ignore this email.</p>`
+          `<p>Your one-time verification code to reset your MediMate password is:</p>` +
+          `<p style="font-size:28px;font-weight:700;letter-spacing:6px;">${otp}</p>` +
+          `<p>This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>`
       );
     } catch (err) {
-      console.error("Failed to send password reset email:", err);
+      console.error("Failed to send password reset OTP email:", err);
     }
   }
 
-  return { message: "If that email exists, a reset link has been sent." };
+  return { message: "If that email exists, a verification code has been sent." };
+};
+
+export const verifyPasswordResetOtp = async (email: string, otp: string) => {
+  const user = await UserRepository.findByEmail(email);
+  if (!user) {
+    throw new HttpException(400, "Invalid or expired code");
+  }
+
+  const record = await PasswordResetTokenModel.findOne({
+    userId: user._id.toString(),
+    used: false,
+  }).sort({ createdAt: -1 });
+
+  if (!record || record.otpExpiresAt.getTime() < Date.now()) {
+    throw new HttpException(400, "Invalid or expired code. Please request a new one.");
+  }
+
+  if (record.otpAttempts >= 5) {
+    throw new HttpException(429, "Too many incorrect attempts. Please request a new code.");
+  }
+
+  const isMatch = await bcrypt.compare(otp, record.otpHash);
+  if (!isMatch) {
+    record.otpAttempts += 1;
+    await record.save();
+    throw new HttpException(400, "Incorrect code. Please try again.");
+  }
+
+  record.otpVerified = true;
+  await record.save();
+
+  return { message: "Code verified successfully", resetToken: record.token };
 };
 
 export const resetPassword = async (token: string, newPassword: string) => {
@@ -211,8 +255,8 @@ export const resetPassword = async (token: string, newPassword: string) => {
   }
 
   const resetToken = await PasswordResetTokenModel.findOne({ token, used: false });
-  if (!resetToken || resetToken.expiresAt.getTime() < Date.now()) {
-    throw new HttpException(400, "Invalid or expired reset link");
+  if (!resetToken || !resetToken.otpVerified || resetToken.expiresAt.getTime() < Date.now()) {
+    throw new HttpException(400, "Invalid or expired reset session. Please start over.");
   }
 
   const hashed = await bcrypt.hash(newPassword, CONSTANTS.BCRYPT_ROUNDS);

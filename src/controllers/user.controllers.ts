@@ -7,6 +7,7 @@ import {
   updateUserProfile,
   updateUserPassword,
   requestPasswordReset,
+  verifyPasswordResetOtp,
   resetPassword as resetPasswordService,
 } from "../services/user.services";
 import { sendSuccess } from "../utils/apihelper.util";
@@ -143,6 +144,23 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
     }
 
     const result = await requestPasswordReset(email.trim().toLowerCase());
+    sendSuccess(res, result, result.message);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const verifyOtp = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, otp } = req.body as { email?: unknown; otp?: unknown };
+    if (typeof email !== "string" || !email.trim()) {
+      throw new HttpException(400, "A valid email address is required");
+    }
+    if (typeof otp !== "string" || !/^\d{6}$/.test(otp.trim())) {
+      throw new HttpException(400, "A valid 6-digit code is required");
+    }
+
+    const result = await verifyPasswordResetOtp(email.trim().toLowerCase(), otp.trim());
     sendSuccess(res, result, result.message);
   } catch (err) {
     next(err);
