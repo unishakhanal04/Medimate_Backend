@@ -55,6 +55,7 @@ export interface RegisterDTO {
 export interface LoginDTO {
   email: string;
   password: string;
+  portal?: UserRole;
 }
 
 export interface JwtPayload {
