@@ -114,7 +114,12 @@ export interface AdminUserActivity {
   aiUsage: {
     totalConversations: number;
   };
-  subscription: null;
+  subscription: {
+    plan: "free" | "premium";
+    status: "active" | "expired" | "cancelled" | null;
+    expiresAt: Date | null;
+    priceNpr: number;
+  };
 }
 
 export type AdminSubscriptionEffectiveStatus = "active" | "expired" | "cancelled";
