@@ -72,6 +72,11 @@ export const loginUser = async (dto: LoginDTO) => {
     throw new HttpException(401, "Invalid credentials");
   }
 
+  if (dto.portal && user.role !== dto.portal) {
+    const portalLabel = dto.portal === "admin" ? "an admin" : "a user";
+    throw new HttpException(403, `This account is not registered as ${portalLabel}. Please choose the correct login portal.`);
+  }
+
   await UserRepository.update(user._id.toString(), { lastLoginAt: new Date() });
 
   return createAuthResponse(user);
