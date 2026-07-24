@@ -21,6 +21,7 @@ import { TimelineService } from "./timeline.services";
 import { EmergencyContactModel } from "../models/emergency-contact.model";
 import { ConversationModel } from "../models/conversation.model";
 import { AdminUserActivity } from "../types/admin.type";
+import { getCurrentSubscription } from "./subscription.services";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const VALID_GENDERS: UserGender[] = ["male", "female", "other"];
@@ -112,6 +113,7 @@ export const getUserActivitySummary = async (userId: string): Promise<AdminUserA
     timeline,
     adherenceStats,
     aiConversationCount,
+    subscription,
   ] = await Promise.all([
     MedicineService.getMedicinesByUserId(userId),
     MedicineService.getActiveMedicinesByUserId(userId),
@@ -123,6 +125,7 @@ export const getUserActivitySummary = async (userId: string): Promise<AdminUserA
     TimelineService.getTimeline(userId, { page: 1, pageSize: 10 }),
     MedicineService.getAdherenceStats(userId),
     ConversationModel.countDocuments({ userId }),
+    getCurrentSubscription(userId),
   ]);
 
   const recentAppointments = [...allAppointments].sort(
@@ -203,7 +206,7 @@ export const getUserActivitySummary = async (userId: string): Promise<AdminUserA
     aiUsage: {
       totalConversations: aiConversationCount,
     },
-    subscription: null,
+    subscription,
   };
 };
 

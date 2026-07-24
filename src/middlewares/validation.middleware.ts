@@ -60,15 +60,20 @@ export const validateRegister = (
   next();
 };
 
+const isValidPortal = (value: unknown): value is "user" | "admin" => {
+  return value === "user" || value === "admin";
+};
+
 export const validateLogin = (
   req: Request,
   _res: Response,
   next: NextFunction
 ) => {
   const errors: Record<string, string> = {};
-  const { email, password } = req.body as {
+  const { email, password, portal } = req.body as {
     email: unknown;
     password: unknown;
+    portal: unknown;
   };
 
   if (!isValidEmail(email)) {
@@ -79,6 +84,10 @@ export const validateLogin = (
     errors.password = "Password is required";
   }
 
+  if (portal !== undefined && !isValidPortal(portal)) {
+    errors.portal = "Portal must be either 'user' or 'admin'";
+  }
+
   if (Object.keys(errors).length > 0) {
     return next(new HttpException(400, "Validation error", errors));
   }
@@ -87,6 +96,7 @@ export const validateLogin = (
     ...req.body,
     email: (email as string).trim().toLowerCase(),
     password: password as string,
+    ...(isValidPortal(portal) ? { portal } : {}),
   };
 
   next();
