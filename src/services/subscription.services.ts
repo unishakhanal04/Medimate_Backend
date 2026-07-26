@@ -45,6 +45,34 @@ export const getPaymentHistory = async (userId: string): Promise<PaymentHistoryI
   }));
 };
 
+const activatePremiumSubscription = async (userId: string, paymentId: string): Promise<void> => {
+  const existingActive = await SubscriptionModel.findOne({
+    userId,
+    status: "active",
+    expiresAt: { $gte: new Date() },
+  });
+
+  const startDate = new Date();
+  const baseDate = existingActive ? existingActive.expiresAt : startDate;
+  const expiresAt = new Date(baseDate);
+  expiresAt.setDate(expiresAt.getDate() + CONSTANTS.PREMIUM_DURATION_DAYS);
+
+  if (existingActive) {
+    existingActive.expiresAt = expiresAt;
+    existingActive.paymentId = paymentId;
+    await existingActive.save();
+  } else {
+    await SubscriptionModel.create({
+      userId,
+      plan: "premium",
+      status: "active",
+      startDate,
+      expiresAt,
+      paymentId,
+    });
+  }
+};
+
 export const initiateSubscriptionPayment = async (userId: string): Promise<InitiatePaymentResponse> => {
   const transactionUuid = crypto.randomUUID();
   const amount = String(CONSTANTS.PREMIUM_PRICE_NPR);
@@ -100,31 +128,7 @@ export const verifySubscriptionPayment = async (
     payment.esewaRefId = esewaStatus.ref_id;
     await payment.save();
 
-    const existingActive = await SubscriptionModel.findOne({
-      userId,
-      status: "active",
-      expiresAt: { $gte: new Date() },
-    });
-
-    const startDate = new Date();
-    const baseDate = existingActive ? existingActive.expiresAt : startDate;
-    const expiresAt = new Date(baseDate);
-    expiresAt.setDate(expiresAt.getDate() + CONSTANTS.PREMIUM_DURATION_DAYS);
-
-    if (existingActive) {
-      existingActive.expiresAt = expiresAt;
-      existingActive.paymentId = payment._id.toString();
-      await existingActive.save();
-    } else {
-      await SubscriptionModel.create({
-        userId,
-        plan: "premium",
-        status: "active",
-        startDate,
-        expiresAt,
-        paymentId: payment._id.toString(),
-      });
-    }
+    await activatePremiumSubscription(userId, payment._id.toString());
 
     return { status: "success", subscription: await getCurrentSubscription(userId) };
   }
