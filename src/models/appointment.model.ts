@@ -59,4 +59,9 @@ const AppointmentSchema = new Schema<IAppointment>(
 AppointmentSchema.index({ userId: 1, status: 1 });
 AppointmentSchema.index({ userId: 1, appointmentDate: 1 });
 
+// Platform-wide, not scoped to one user: admin dashboard counts (appointments
+// created this week, upcoming-appointments total) query across all users.
+AppointmentSchema.index({ createdAt: 1 });
+AppointmentSchema.index({ status: 1, appointmentDate: 1 });
+
 export const AppointmentModel = mongoose.model<IAppointment>("Appointment", AppointmentSchema);

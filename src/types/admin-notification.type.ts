@@ -1,7 +1,5 @@
 export type AdminNotificationType =
   | "new_user_registered"
-  | "payment_success"
-  | "subscription_expired"
   | "gemini_api_failed"
   | "system_error";
 

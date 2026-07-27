@@ -4,8 +4,6 @@ import { PrescriptionModel } from "../models/prescription.model";
 import { AppointmentModel } from "../models/appointment.model";
 import { ConversationModel } from "../models/conversation.model";
 import { AiMessageModel } from "../models/ai-message.model";
-import { PaymentModel } from "../models/payment.model";
-import { SubscriptionModel } from "../models/subscription.model";
 import { FeedbackModel, FeedbackStatus, FeedbackType } from "../models/feedback.model";
 
 export const AdminRepository = {
@@ -107,71 +105,9 @@ export const AdminRepository = {
     return AiMessageModel.countDocuments({ role: "user", createdAt: { $gte: since } });
   },
 
-  async findPayments({ page, limit, status }: { page: number; limit: number; status?: string }) {
-    const query: Record<string, unknown> = {};
-    if (status) query.status = status;
-
-    const skip = (page - 1) * limit;
-    const [payments, total] = await Promise.all([
-      PaymentModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
-      PaymentModel.countDocuments(query),
-    ]);
-
-    return { payments, total };
-  },
-
   async findUsersByIds(ids: string[]) {
     if (!ids.length) return [];
     return UserModel.find({ _id: { $in: ids } }).select("username email");
-  },
-
-  async findSubscriptions({
-    page,
-    limit,
-    status,
-    now,
-  }: {
-    page: number;
-    limit: number;
-    status?: "active" | "expired" | "cancelled";
-    now: Date;
-  }) {
-    let query: Record<string, unknown> = {};
-    if (status === "cancelled") {
-      query = { status: "cancelled" };
-    } else if (status === "active") {
-      query = { status: "active", expiresAt: { $gte: now } };
-    } else if (status === "expired") {
-      query = { status: "active", expiresAt: { $lt: now } };
-    }
-
-    const skip = (page - 1) * limit;
-    const [subscriptions, total] = await Promise.all([
-      SubscriptionModel.find(query).sort({ expiresAt: -1 }).skip(skip).limit(limit),
-      SubscriptionModel.countDocuments(query),
-    ]);
-
-    return { subscriptions, total };
-  },
-
-  async countSubscriptions() {
-    return SubscriptionModel.countDocuments({});
-  },
-
-  async countActiveSubscriptions(now: Date) {
-    return SubscriptionModel.countDocuments({ status: "active", expiresAt: { $gte: now } });
-  },
-
-  async countExpiredSubscriptions(now: Date) {
-    return SubscriptionModel.countDocuments({ status: "active", expiresAt: { $lt: now } });
-  },
-
-  async countSuccessfulPayments() {
-    return PaymentModel.countDocuments({ status: "success" });
-  },
-
-  async countFailedPayments() {
-    return PaymentModel.countDocuments({ status: "failed" });
   },
 
   async findFeedback({
@@ -200,17 +136,6 @@ export const AdminRepository = {
 
   async updateFeedbackStatus(id: string, status: FeedbackStatus) {
     return FeedbackModel.findByIdAndUpdate(id, { status }, { new: true });
-  },
-
-  async sumSuccessfulPaymentsAmount(since?: Date) {
-    const match: Record<string, unknown> = { status: "success" };
-    if (since) match.createdAt = { $gte: since };
-
-    const result = await PaymentModel.aggregate([
-      { $match: match },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
-    ]);
-    return result[0]?.total ?? 0;
   },
 
   async findMedicineTakenDatesSince(since: Date): Promise<Date[]> {

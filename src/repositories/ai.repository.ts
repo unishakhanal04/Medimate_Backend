@@ -33,10 +33,6 @@ export const AiRepository = {
     return await AiMessageModel.find({ userId }).sort({ createdAt: 1 });
   },
 
-  async countUserMessagesSince(userId: string, since: Date) {
-    return await AiMessageModel.countDocuments({ userId, role: "user", createdAt: { $gte: since } });
-  },
-
   async deleteMessagesByUserId(userId: string) {
     await AiMessageModel.deleteMany({ userId });
   },

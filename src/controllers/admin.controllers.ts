@@ -32,51 +32,6 @@ export const getReportsOverview = async (req: AuthRequest, res: Response, next: 
   }
 };
 
-export const getSubscriptionStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const stats = await AdminService.getSubscriptionStats();
-    sendSuccess(res, stats, "Subscription stats retrieved successfully");
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const listSubscriptions = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const status =
-      req.query.status === "active" || req.query.status === "expired" || req.query.status === "cancelled"
-        ? req.query.status
-        : undefined;
-
-    const result = await AdminService.listSubscriptions({
-      page: Number(req.query.page),
-      limit: Number(req.query.limit),
-      status,
-    });
-    sendSuccess(res, result, "Subscriptions retrieved successfully");
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const listPayments = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const status =
-      req.query.status === "pending" || req.query.status === "success" || req.query.status === "failed"
-        ? req.query.status
-        : undefined;
-
-    const result = await AdminService.listPayments({
-      page: Number(req.query.page),
-      limit: Number(req.query.limit),
-      status,
-    });
-    sendSuccess(res, result, "Payments retrieved successfully");
-  } catch (err) {
-    next(err);
-  }
-};
-
 export const getAuditLogs = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const logs = await AuditLogService.getLogs({

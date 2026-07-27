@@ -57,6 +57,11 @@ const PrescriptionSchema = new Schema<IPrescription>(
 PrescriptionSchema.index({ userId: 1, prescriptionDate: -1 });
 PrescriptionSchema.index({ userId: 1, expiryDate: 1 });
 
+// Platform-wide, not scoped to one user: admin dashboard counts (prescriptions
+// uploaded this week, expiring-soon totals) query across all users.
+PrescriptionSchema.index({ createdAt: 1 });
+PrescriptionSchema.index({ expiryDate: 1 });
+
 export const PrescriptionModel = mongoose.model<IPrescription>(
   "Prescription",
   PrescriptionSchema
