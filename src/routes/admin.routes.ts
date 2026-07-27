@@ -6,9 +6,6 @@ import {
   getReportsOverview,
   getSystemHealth,
   listUsers,
-  listPayments,
-  getSubscriptionStats,
-  listSubscriptions,
   getAuditLogs,
   logReportExport,
   getAdminNotifications,
@@ -29,9 +26,6 @@ router.use(authorize, requireAdmin);
 router.get("/dashboard-summary", getDashboardSummary);
 router.get("/reports-overview", getReportsOverview);
 router.get("/system-health", getSystemHealth);
-router.get("/payments", listPayments);
-router.get("/subscriptions/stats", getSubscriptionStats);
-router.get("/subscriptions", listSubscriptions);
 router.get("/audit-logs", getAuditLogs);
 router.post("/audit-logs/report-export", logReportExport);
 router.get("/notifications", getAdminNotifications);

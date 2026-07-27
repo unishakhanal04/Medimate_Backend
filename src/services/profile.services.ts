@@ -58,7 +58,12 @@ export const ProfileService = {
     if (data.username !== undefined) updateData.username = data.username.trim();
     if (data.email !== undefined) updateData.email = data.email.trim().toLowerCase();
     if (data.phone !== undefined) updateData.phone = data.phone;
-    if (data.dateOfBirth !== undefined) updateData.dateOfBirth = new Date(data.dateOfBirth);
+    if (data.dateOfBirth !== undefined) {
+      // An empty string means "not set" (an optional field left blank), not a
+      // date to parse — new Date("") is an Invalid Date and fails Mongoose's
+      // cast/validation on save.
+      updateData.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : undefined;
+    }
     if (data.gender !== undefined) updateData.gender = data.gender;
     if (data.bloodGroup !== undefined) updateData.bloodGroup = data.bloodGroup;
     if (data.allergies !== undefined) updateData.allergies = data.allergies;

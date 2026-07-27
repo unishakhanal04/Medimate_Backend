@@ -1,6 +1,4 @@
 import { UserModel } from "../models/user.model";
-import { PaymentModel } from "../models/payment.model";
-import { SubscriptionModel } from "../models/subscription.model";
 import { SystemErrorLogModel } from "../models/system-error-log.model";
 import { UserRepository } from "../repositories/user.repository";
 import { AdminNotificationItem, AdminNotificationsResult } from "../types/admin-notification.type";
@@ -11,25 +9,13 @@ export const AdminNotificationService = {
   async getNotifications(adminId: string): Promise<AdminNotificationsResult> {
     const since = new Date();
     since.setDate(since.getDate() - LOOKBACK_DAYS);
-    const now = new Date();
 
-    const [newUsers, successfulPayments, expiredSubscriptions, geminiFailures, serverErrors, admin] =
-      await Promise.all([
-        UserModel.find({ createdAt: { $gte: since } }).sort({ createdAt: -1 }).limit(30),
-        PaymentModel.find({ status: "success", createdAt: { $gte: since } }).sort({ createdAt: -1 }).limit(30),
-        SubscriptionModel.find({ status: "active", expiresAt: { $gte: since, $lt: now } })
-          .sort({ expiresAt: -1 })
-          .limit(30),
-        SystemErrorLogModel.find({ source: "gemini_api", createdAt: { $gte: since } }).sort({ createdAt: -1 }).limit(30),
-        SystemErrorLogModel.find({ source: "server", createdAt: { $gte: since } }).sort({ createdAt: -1 }).limit(30),
-        UserRepository.findById(adminId),
-      ]);
-
-    const userIds = [
-      ...new Set([...successfulPayments.map((p) => p.userId), ...expiredSubscriptions.map((s) => s.userId)]),
-    ];
-    const users = await UserModel.find({ _id: { $in: userIds } }).select("username");
-    const usernameById = new Map(users.map((u) => [u._id.toString(), u.username]));
+    const [newUsers, geminiFailures, serverErrors, admin] = await Promise.all([
+      UserModel.find({ createdAt: { $gte: since } }).sort({ createdAt: -1 }).limit(30),
+      SystemErrorLogModel.find({ source: "gemini_api", createdAt: { $gte: since } }).sort({ createdAt: -1 }).limit(30),
+      SystemErrorLogModel.find({ source: "server", createdAt: { $gte: since } }).sort({ createdAt: -1 }).limit(30),
+      UserRepository.findById(adminId),
+    ]);
 
     const lastSeen = admin?.notificationsLastSeenAt ?? null;
     const isUnread = (date: Date) => !lastSeen || date > lastSeen;
@@ -45,30 +31,6 @@ export const AdminNotificationService = {
         message: user.username,
         date: createdAt.toISOString(),
         read: !isUnread(createdAt),
-      });
-    }
-
-    for (const payment of successfulPayments) {
-      const username = usernameById.get(payment.userId) ?? "Unknown user";
-      items.push({
-        id: `payment-${payment._id.toString()}`,
-        type: "payment_success",
-        title: "Payment success",
-        message: `NPR ${payment.amount} from ${username}`,
-        date: payment.createdAt.toISOString(),
-        read: !isUnread(payment.createdAt),
-      });
-    }
-
-    for (const sub of expiredSubscriptions) {
-      const username = usernameById.get(sub.userId) ?? "Unknown user";
-      items.push({
-        id: `sub-expired-${sub._id.toString()}`,
-        type: "subscription_expired",
-        title: "Subscription expired",
-        message: username,
-        date: sub.expiresAt.toISOString(),
-        read: !isUnread(sub.expiresAt),
       });
     }
 

@@ -18,17 +18,6 @@ export const CONSTANTS = {
   GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-flash-latest",
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || "",
 
-  // eSewa v2 sandbox — defaults are eSewa's own public test-merchant credentials
-  // (EPAYTEST), documented for developer testing. Safe to ship as defaults since
-  // they only work against eSewa's rc- (sandbox) endpoints, not production.
-  ESEWA_PRODUCT_CODE: process.env.ESEWA_PRODUCT_CODE || "EPAYTEST",
-  ESEWA_SECRET_KEY: process.env.ESEWA_SECRET_KEY || "8gBm/:&EnhH.1/q",
-  ESEWA_PAYMENT_URL: process.env.ESEWA_PAYMENT_URL || "https://rc-epay.esewa.com.np/api/epay/main/v2/form",
-  ESEWA_STATUS_URL: process.env.ESEWA_STATUS_URL || "https://rc.esewa.com.np/api/epay/transaction/status/",
-  PREMIUM_PRICE_NPR: Number(process.env.PREMIUM_PRICE_NPR) || 999,
-  PREMIUM_DURATION_DAYS: Number(process.env.PREMIUM_DURATION_DAYS) || 30,
-  FREE_AI_MESSAGE_LIMIT: Number(process.env.FREE_AI_MESSAGE_LIMIT) || 20,
-
   VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY || "",
   VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY || "",
   VAPID_SUBJECT: process.env.VAPID_SUBJECT || "mailto:admin@medimate.local",

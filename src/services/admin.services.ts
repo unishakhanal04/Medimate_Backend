@@ -6,12 +6,7 @@ import {
   AdminDashboardSummary,
   AdminFeedbackListQuery,
   AdminFeedbackListResult,
-  AdminPaymentListQuery,
-  AdminPaymentListResult,
   AdminReportsOverview,
-  AdminSubscriptionListQuery,
-  AdminSubscriptionListResult,
-  AdminSubscriptionStats,
   SystemHealth,
   UserGrowthPoint,
 } from "../types/admin.type";
@@ -193,114 +188,6 @@ export const AdminService = {
       },
       totalPrescriptions,
       prescriptionsExpiringSoon,
-    };
-  },
-
-  async listPayments(query: AdminPaymentListQuery): Promise<AdminPaymentListResult> {
-    const page = Math.max(1, query.page || 1);
-    const limit = Math.min(50, Math.max(1, query.limit || 10));
-
-    const { payments, total } = await AdminRepository.findPayments({ page, limit, status: query.status });
-
-    const userIds = [...new Set(payments.map((p) => p.userId))];
-    const users = await AdminRepository.findUsersByIds(userIds);
-    const userById = new Map(users.map((u) => [u._id.toString(), u]));
-
-    return {
-      data: payments.map((payment) => {
-        const user = userById.get(payment.userId);
-        return {
-          id: payment._id.toString(),
-          transactionUuid: payment.transactionUuid,
-          userId: payment.userId,
-          username: user?.username ?? null,
-          email: user?.email ?? null,
-          amount: payment.amount,
-          gateway: payment.gateway,
-          status: payment.status,
-          esewaRefId: payment.esewaRefId,
-          createdAt: payment.createdAt,
-        };
-      }),
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.max(1, Math.ceil(total / limit)),
-      },
-    };
-  },
-
-  async getSubscriptionStats(): Promise<AdminSubscriptionStats> {
-    const now = new Date();
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-
-    const [totalSubscriptions, premiumUsers, expiredPlans, successfulPayments, failedPayments, totalRevenue, revenueThisMonth] =
-      await Promise.all([
-        AdminRepository.countSubscriptions(),
-        AdminRepository.countActiveSubscriptions(now),
-        AdminRepository.countExpiredSubscriptions(now),
-        AdminRepository.countSuccessfulPayments(),
-        AdminRepository.countFailedPayments(),
-        AdminRepository.sumSuccessfulPaymentsAmount(),
-        AdminRepository.sumSuccessfulPaymentsAmount(monthStart),
-      ]);
-
-    // Each Subscription doc represents a user's first premium purchase; every
-    // successful payment beyond that (verifySubscriptionPayment extends the
-    // existing doc's expiresAt rather than creating a new one) is a renewal.
-    const renewals = Math.max(successfulPayments - totalSubscriptions, 0);
-
-    return {
-      totalSubscriptions,
-      premiumUsers,
-      expiredPlans,
-      renewals,
-      failedPayments,
-      totalRevenue,
-      revenueThisMonth,
-    };
-  },
-
-  async listSubscriptions(query: AdminSubscriptionListQuery): Promise<AdminSubscriptionListResult> {
-    const page = Math.max(1, query.page || 1);
-    const limit = Math.min(50, Math.max(1, query.limit || 10));
-    const now = new Date();
-
-    const { subscriptions, total } = await AdminRepository.findSubscriptions({
-      page,
-      limit,
-      status: query.status,
-      now,
-    });
-
-    const userIds = [...new Set(subscriptions.map((s) => s.userId))];
-    const users = await AdminRepository.findUsersByIds(userIds);
-    const userById = new Map(users.map((u) => [u._id.toString(), u]));
-
-    return {
-      data: subscriptions.map((sub) => {
-        const user = userById.get(sub.userId);
-        const effectiveStatus = sub.status === "cancelled" ? "cancelled" : sub.expiresAt < now ? "expired" : "active";
-        return {
-          id: sub._id.toString(),
-          userId: sub.userId,
-          username: user?.username ?? null,
-          email: user?.email ?? null,
-          plan: sub.plan,
-          status: effectiveStatus,
-          startDate: sub.startDate,
-          expiresAt: sub.expiresAt,
-        };
-      }),
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.max(1, Math.ceil(total / limit)),
-      },
     };
   },
 

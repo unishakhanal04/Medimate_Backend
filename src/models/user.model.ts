@@ -45,4 +45,9 @@ const userSchema = new Schema<IUserDocument>(
   { timestamps: true }
 );
 
+// Supports the admin dashboard's platform-wide counts (new/active users over
+// time), which query across all users rather than being scoped to one userId.
+userSchema.index({ createdAt: 1 });
+userSchema.index({ lastLoginAt: 1 });
+
 export const UserModel = mongoose.model<IUserDocument>("User", userSchema);

@@ -110,5 +110,10 @@ MedicineSchema.index({ userId: 1, startDate: 1 });
 MedicineLogSchema.index({ medicineId: 1, takenAt: -1 });
 MedicineLogSchema.index({ userId: 1, takenAt: -1 });
 
+// Platform-wide, not scoped to one user: admin dashboard counts (new medicines
+// this week, adherence snapshot) query across all users' documents.
+MedicineSchema.index({ createdAt: 1 });
+MedicineLogSchema.index({ takenAt: 1, status: 1 });
+
 export const MedicineModel = mongoose.model<IMedicine>("Medicine", MedicineSchema);
 export const MedicineLogModel = mongoose.model<IMedicineLog>("MedicineLog", MedicineLogSchema);

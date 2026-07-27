@@ -4,7 +4,6 @@ import { MedicineService } from "../services/medicine.services";
 import { ReportsService } from "../services/reports.services";
 import { sendSuccess } from "../utils/apihelper.util";
 import { HttpException } from "../exceptions/http-exception";
-import { isUserPremium } from "../services/subscription.services";
 
 // --- Existing endpoints (kept for backward compatibility — already consumed by the
 // dashboard and Medicines page via reportsService.getRefillAlerts()) ---
@@ -113,14 +112,8 @@ export const getInsights = async (req: AuthRequest, res: Response, next: NextFun
   try {
     if (!req.user?.userId) throw new HttpException(401, "User not authenticated");
 
-    const premium = await isUserPremium(req.user.userId);
-    if (!premium) {
-      sendSuccess(res, { unlocked: false, insights: null }, "Insights are a Premium feature");
-      return;
-    }
-
     const insights = await ReportsService.getInsights(req.user.userId);
-    sendSuccess(res, { unlocked: true, insights }, "Insights retrieved successfully");
+    sendSuccess(res, { insights }, "Insights retrieved successfully");
   } catch (err) {
     next(err);
   }

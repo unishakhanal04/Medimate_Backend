@@ -114,51 +114,6 @@ export interface AdminUserActivity {
   aiUsage: {
     totalConversations: number;
   };
-  subscription: {
-    plan: "free" | "premium";
-    status: "active" | "expired" | "cancelled" | null;
-    expiresAt: Date | null;
-    priceNpr: number;
-  };
-}
-
-export type AdminSubscriptionEffectiveStatus = "active" | "expired" | "cancelled";
-
-export interface AdminSubscriptionStats {
-  totalSubscriptions: number;
-  premiumUsers: number;
-  expiredPlans: number;
-  renewals: number;
-  failedPayments: number;
-  totalRevenue: number;
-  revenueThisMonth: number;
-}
-
-export interface AdminSubscriptionItem {
-  id: string;
-  userId: string;
-  username: string | null;
-  email: string | null;
-  plan: string;
-  status: AdminSubscriptionEffectiveStatus;
-  startDate: Date;
-  expiresAt: Date;
-}
-
-export interface AdminSubscriptionListResult {
-  data: AdminSubscriptionItem[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
-
-export interface AdminSubscriptionListQuery {
-  page: number;
-  limit: number;
-  status?: AdminSubscriptionEffectiveStatus;
 }
 
 export interface AdminFeedbackItem {
@@ -188,35 +143,6 @@ export interface AdminFeedbackListQuery {
   limit: number;
   type?: "bug_report" | "suggestion" | "feature_request" | "general";
   status?: "new" | "reviewed" | "resolved";
-}
-
-export interface AdminPaymentItem {
-  id: string;
-  transactionUuid: string;
-  userId: string;
-  username: string | null;
-  email: string | null;
-  amount: number;
-  gateway: string;
-  status: string;
-  esewaRefId?: string;
-  createdAt: Date;
-}
-
-export interface AdminPaymentListResult {
-  data: AdminPaymentItem[];
-  meta: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
-
-export interface AdminPaymentListQuery {
-  page: number;
-  limit: number;
-  status?: "pending" | "success" | "failed";
 }
 
 export interface SystemHealth {

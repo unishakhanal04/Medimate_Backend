@@ -15,7 +15,6 @@ import aiRoutes from "./routes/ai.routes";
 import profileRoutes from "./routes/profile.routes";
 import adminRoutes from "./routes/admin.routes";
 import notificationRoutes from "./routes/notification.routes";
-import subscriptionRoutes from "./routes/subscription.routes";
 import feedbackRoutes from "./routes/feedback.routes";
 import systemRoutes from "./routes/system.routes";
 import pushRoutes from "./routes/push.routes";
@@ -60,7 +59,6 @@ app.use("/api/v1/ai", aiRoutes);
 app.use("/api/v1/profile", profileRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
-app.use("/api/v1/subscription", subscriptionRoutes);
 app.use("/api/v1/feedback", feedbackRoutes);
 app.use("/api/v1/push", pushRoutes);
 

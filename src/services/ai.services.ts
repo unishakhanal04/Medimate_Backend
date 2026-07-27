@@ -2,7 +2,6 @@ import { ApiError } from "@google/genai";
 import { HttpException } from "../exceptions/http-exception";
 import { CONSTANTS } from "../config/constant";
 import { AiRepository } from "../repositories/ai.repository";
-import { isUserPremium } from "./subscription.services";
 import { SystemErrorLogModel } from "../models/system-error-log.model";
 import { MedicineService } from "./medicine.services";
 import { AppointmentService } from "./appointment.services";
@@ -84,20 +83,6 @@ export const AiService = {
   async sendMessage(userId: string, text: string) {
     const client = getGeminiClient();
 
-    if (!(await isUserPremium(userId))) {
-      const monthStart = new Date();
-      monthStart.setDate(1);
-      monthStart.setHours(0, 0, 0, 0);
- 
-      const usedThisMonth = await AiRepository.countUserMessagesSince(userId, monthStart);
-      if (usedThisMonth >= CONSTANTS.FREE_AI_MESSAGE_LIMIT) {
-        throw new HttpException(
-          403,
-          `You've reached your free plan's ${CONSTANTS.FREE_AI_MESSAGE_LIMIT} AI messages this month. Upgrade to Premium for unlimited AI access.`
-        );
-      }
-    }
-
     const conversation =
       (await AiRepository.findActiveConversation(userId)) ??
       (await AiRepository.createConversation(userId));
@@ -148,20 +133,6 @@ export const AiService = {
     await AiRepository.touchConversation(conversationId);
 
     return { role: "assistant" as const, content: replyText };
-  },
-
-  async getUsage(userId: string) {
-    const premium = await isUserPremium(userId);
-    if (premium) {
-      return { isPremium: true, used: 0, limit: null as number | null };
-    }
-
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-
-    const used = await AiRepository.countUserMessagesSince(userId, monthStart);
-    return { isPremium: false, used, limit: CONSTANTS.FREE_AI_MESSAGE_LIMIT };
   },
 
   async getHistory(userId: string) {
