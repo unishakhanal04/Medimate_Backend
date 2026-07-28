@@ -30,4 +30,31 @@ describe("authorize middleware", () => {
     expect(next).toHaveBeenCalledWith();
     expect(req.user?.userId).toBe("u1");
   });
+
+  it("rejects an Authorization header that isn't a Bearer token", () => {
+    const req = { headers: { authorization: "Basic dXNlcjpwYXNz" } } as AuthRequest;
+    const next = jest.fn();
+    authorize(req, {} as Response, next as NextFunction);
+    const err = next.mock.calls[0][0] as HttpException;
+    expect(err.status).toBe(401);
+  });
+
+  it("rejects a token signed with a different secret", () => {
+    const token = jwt.sign({ userId: "u1", email: "a@b.com", role: "user" }, "wrong-secret");
+    const req = { headers: { authorization: `Bearer ${token}` } } as AuthRequest;
+    const next = jest.fn();
+    authorize(req, {} as Response, next as NextFunction);
+    const err = next.mock.calls[0][0] as HttpException;
+    expect(err.status).toBe(401);
+  });
+
+  it("rejects an expired token", () => {
+    const token = jwt.sign({ userId: "u1", email: "a@b.com", role: "user" }, CONSTANTS.JWT_SECRET, { expiresIn: -10 });
+    const req = { headers: { authorization: `Bearer ${token}` } } as AuthRequest;
+    const next = jest.fn();
+    authorize(req, {} as Response, next as NextFunction);
+    const err = next.mock.calls[0][0] as HttpException;
+    expect(err.status).toBe(401);
+    expect(err.message).toMatch(/expired/i);
+  });
 });

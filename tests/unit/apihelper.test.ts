@@ -33,4 +33,17 @@ describe("apihelper.util", () => {
     expect(res2.status).toHaveBeenCalledWith(500);
     expect(res2.json).toHaveBeenCalledWith({ success: false, message: "Error" });
   });
+
+  it("sendSuccess omits the data field when none is given", () => {
+    const res = mockResponse();
+    sendSuccess(res, undefined, "No content");
+    expect(res.json).toHaveBeenCalledWith({ success: true, message: "No content", data: undefined });
+  });
+
+  it("sendError honors a custom status code without an errors map", () => {
+    const res = mockResponse();
+    sendError(res, "Not found", 404);
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ success: false, message: "Not found" });
+  });
 });
