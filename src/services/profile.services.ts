@@ -71,6 +71,7 @@ export const ProfileService = {
     if (data.height !== undefined) updateData.height = data.height;
     if (data.weight !== undefined) updateData.weight = data.weight;
     if (data.profileImage !== undefined) updateData.profileImage = data.profileImage;
+    updateData.profileUpdatedAt = new Date();
 
     const updatedUser = await ProfileRepository.update(userId, updateData);
     if (!updatedUser) {
@@ -120,7 +121,10 @@ export const ProfileService = {
       ...data,
     };
 
-    const updatedUser = await ProfileRepository.update(userId, { preferences: updatedPreferences });
+    const updatedUser = await ProfileRepository.update(userId, {
+      preferences: updatedPreferences,
+      profileUpdatedAt: new Date(),
+    });
     if (!updatedUser) {
       throw new HttpException(404, "User not found");
     }

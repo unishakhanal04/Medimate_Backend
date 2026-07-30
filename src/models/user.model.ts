@@ -30,6 +30,7 @@ const userSchema = new Schema<IUserDocument>(
     height: { type: Number },
     weight: { type: Number },
     passwordChangedAt: { type: Date },
+    profileUpdatedAt: { type: Date },
     notificationsLastSeenAt: { type: Date },
     lastLoginAt: { type: Date },
     preferences: {

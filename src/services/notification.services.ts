@@ -8,8 +8,9 @@ const RECENT_WINDOW_DAYS = 7;
 
 export const NotificationService = {
   async getNotifications(userId: string): Promise<NotificationsResult> {
-    const [todayMedicines, upcomingAppointments, prescriptions, refillAlerts, user] = await Promise.all([
+    const [todayMedicines, allMedicines, upcomingAppointments, prescriptions, refillAlerts, user] = await Promise.all([
       MedicineService.getTodayMedicines(userId),
+      MedicineService.getMedicinesByUserId(userId),
       AppointmentService.getUpcomingAppointments(userId),
       PrescriptionService.getPrescriptionsByUserId(userId),
       MedicineService.getRefillAlerts(userId),
@@ -28,6 +29,20 @@ export const NotificationService = {
     startOfToday.setHours(0, 0, 0, 0);
 
     const items: NotificationItem[] = [];
+
+    for (const medicine of allMedicines) {
+      if (medicine.createdAt >= recentCutoff) {
+        items.push({
+          id: `medicine-added-${medicine._id.toString()}`,
+          type: "medicine_added",
+          title: "Medicine added",
+          message: `${medicine.name} (${medicine.dosage}) was added to your medicines.`,
+          date: medicine.createdAt.toISOString(),
+          read: !isUnread(medicine.createdAt),
+          refId: medicine._id.toString(),
+        });
+      }
+    }
 
     // Medicine missed — today's doses whose scheduled time has passed with no log.
     // Dated at the dose's own scheduled time (not the request time) so "mark all as
@@ -106,6 +121,17 @@ export const NotificationService = {
         message: "Your account password was updated.",
         date: user.passwordChangedAt.toISOString(),
         read: !isUnread(user.passwordChangedAt),
+      });
+    }
+
+    if (user?.profileUpdatedAt && user.profileUpdatedAt >= recentCutoff) {
+      items.push({
+        id: `profile-updated-${user.profileUpdatedAt.getTime()}`,
+        type: "profile_updated",
+        title: "Profile updated",
+        message: "Your profile information was updated.",
+        date: user.profileUpdatedAt.toISOString(),
+        read: !isUnread(user.profileUpdatedAt),
       });
     }
 

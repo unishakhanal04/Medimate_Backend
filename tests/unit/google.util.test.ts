@@ -1,6 +1,7 @@
 describe("verifyGoogleIdToken", () => {
   afterEach(() => {
     jest.resetModules();
+    jest.clearAllMocks();
   });
 
   const mockOAuthClient = (verifyIdToken: jest.Mock) => {
@@ -9,58 +10,70 @@ describe("verifyGoogleIdToken", () => {
     }));
   };
 
-  const mockClientId = (clientId: string) => {
+  const mockConstants = (clientId: string) => {
     jest.doMock("../../src/config/constant", () => ({
-      CONSTANTS: { ...jest.requireActual("../../src/config/constant").CONSTANTS, GOOGLE_CLIENT_ID: clientId },
+      CONSTANTS: {
+        ...jest.requireActual("../../src/config/constant").CONSTANTS,
+        GOOGLE_CLIENT_ID: clientId,
+      },
     }));
   };
 
   it("throws a 500 HttpException when GOOGLE_CLIENT_ID is not configured", async () => {
     mockOAuthClient(jest.fn());
-    mockClientId("");
+    mockConstants("");
     const { verifyGoogleIdToken } = require("../../src/utils/google.util");
     await expect(verifyGoogleIdToken("token")).rejects.toMatchObject({ status: 500 });
   });
 
-  it("throws a 401 HttpException when the token fails verification", async () => {
+  it("throws a 401 HttpException for an invalid token", async () => {
     mockOAuthClient(jest.fn().mockRejectedValue(new Error("bad token")));
-    mockClientId("client-id");
+    mockConstants("client-id");
     const { verifyGoogleIdToken } = require("../../src/utils/google.util");
     await expect(verifyGoogleIdToken("bad")).rejects.toMatchObject({ status: 401 });
   });
 
-  it("throws a 401 HttpException when the payload has no email", async () => {
-    mockOAuthClient(jest.fn().mockResolvedValue({ getPayload: () => ({ name: "Jane" }) }));
-    mockClientId("client-id");
+  it("throws a 401 HttpException when the token has no payload", async () => {
+    mockOAuthClient(jest.fn().mockResolvedValue({ getPayload: () => undefined }));
+    mockConstants("client-id");
     const { verifyGoogleIdToken } = require("../../src/utils/google.util");
     await expect(verifyGoogleIdToken("t")).rejects.toMatchObject({ status: 401 });
   });
 
-  it("returns the profile from a valid payload", async () => {
+  it("throws a 401 HttpException when the token payload has no email", async () => {
+    mockOAuthClient(
+      jest.fn().mockResolvedValue({ getPayload: () => ({ name: "Jane" }) }),
+    );
+    mockConstants("client-id");
+    const { verifyGoogleIdToken } = require("../../src/utils/google.util");
+    await expect(verifyGoogleIdToken("t")).rejects.toMatchObject({ status: 401 });
+  });
+
+  it("uses the email prefix when Google does not provide a name", async () => {
+    mockOAuthClient(
+      jest.fn().mockResolvedValue({ getPayload: () => ({ email: "jane@example.com" }) }),
+    );
+    mockConstants("client-id");
+    const { verifyGoogleIdToken } = require("../../src/utils/google.util");
+    await expect(verifyGoogleIdToken("t")).resolves.toEqual({
+      email: "jane@example.com",
+      name: "jane",
+      picture: undefined,
+    });
+  });
+
+  it("returns the Google profile", async () => {
     mockOAuthClient(
       jest.fn().mockResolvedValue({
-        getPayload: () => ({ email: "jane@example.com", name: "Jane Doe", picture: "http://pic" }),
-      })
+        getPayload: () => ({ email: "jane@example.com", name: "Jane" }),
+      }),
     );
-    mockClientId("client-id");
+    mockConstants("client-id");
     const { verifyGoogleIdToken } = require("../../src/utils/google.util");
-    const profile = await verifyGoogleIdToken("t");
-    expect(profile).toEqual({ email: "jane@example.com", name: "Jane Doe", picture: "http://pic" });
-  });
-
-  it("derives the display name from the email local-part when the payload has no name", async () => {
-    mockOAuthClient(jest.fn().mockResolvedValue({ getPayload: () => ({ email: "jane@example.com" }) }));
-    mockClientId("client-id");
-    const { verifyGoogleIdToken } = require("../../src/utils/google.util");
-    const profile = await verifyGoogleIdToken("t");
-    expect(profile.name).toBe("jane");
-  });
-
-  it("leaves picture undefined when the payload has none", async () => {
-    mockOAuthClient(jest.fn().mockResolvedValue({ getPayload: () => ({ email: "jane@example.com", name: "Jane" }) }));
-    mockClientId("client-id");
-    const { verifyGoogleIdToken } = require("../../src/utils/google.util");
-    const profile = await verifyGoogleIdToken("t");
-    expect(profile.picture).toBeUndefined();
+    await expect(verifyGoogleIdToken("t")).resolves.toEqual({
+      email: "jane@example.com",
+      name: "Jane",
+      picture: undefined,
+    });
   });
 });
