@@ -1,9 +1,11 @@
 export type NotificationType =
+  | "medicine_added"
   | "medicine_missed"
   | "appointment_tomorrow"
   | "prescription_uploaded"
   | "low_stock"
-  | "password_changed";
+  | "password_changed"
+  | "profile_updated";
 
 export interface NotificationItem {
   id: string;

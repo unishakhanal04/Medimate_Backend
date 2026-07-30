@@ -5,7 +5,6 @@ export interface IEmergencyContactDocument extends Document {
   name: string;
   relationship: string;
   phone: string;
-  email?: string;
   isPrimary: boolean;
   notes?: string;
 }
@@ -16,7 +15,6 @@ const emergencyContactSchema = new Schema<IEmergencyContactDocument>(
     name: { type: String, required: true, trim: true },
     relationship: { type: String, required: true, trim: true },
     phone: { type: String, required: true, trim: true },
-    email: { type: String, trim: true },
     isPrimary: { type: Boolean, default: false },
     notes: { type: String, trim: true },
   },

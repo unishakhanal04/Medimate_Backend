@@ -26,6 +26,7 @@ export interface IUser {
   weight?: number;
   preferences?: IUserPreferences;
   passwordChangedAt?: Date;
+  profileUpdatedAt?: Date;
   notificationsLastSeenAt?: Date;
   lastLoginAt?: Date;
   createdAt?: Date;
